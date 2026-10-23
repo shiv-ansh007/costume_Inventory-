@@ -48,6 +48,31 @@ const createRentalRequest = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Product has no rental price set' });
     }
 
+    // Deduplication check: prevent accidental double-clicks or rapid duplicate requests
+    const recentDuplicate = await prisma.rentalOrder.findFirst({
+      where: {
+        userId,
+        productId: parseInt(productId),
+        startDate: start,
+        endDate: end,
+        quantity: parseInt(quantity),
+        status: 'PENDING',
+        createdAt: { gte: new Date(Date.now() - 15000) },
+      },
+      include: {
+        product: { select: { name: true, imageUrl: true } },
+        user: { select: { name: true, email: true } },
+      },
+    });
+
+    if (recentDuplicate) {
+      return res.status(200).json({
+        success: true,
+        data: recentDuplicate,
+        message: 'Order was already received.',
+      });
+    }
+
     // Check availability against current stock and overlapping PENDING requests
     const overlappingPending = await prisma.rentalOrder.aggregate({
       _sum: { quantity: true },
