@@ -12,7 +12,16 @@ const createRentalRequest = async (req, res, next) => {
       return res.status(400).json({ success: false, errors: errors.array() });
     }
 
-    const { productId, startDate, endDate, quantity = 1, notes } = req.body;
+    const {
+      productId,
+      startDate,
+      endDate,
+      quantity = 1,
+      notes,
+      deliveryOption = 'PICKUP',
+      deliveryAddress,
+      contactPhone,
+    } = req.body;
     const userId = req.user.id;
 
     const start = new Date(startDate);
@@ -63,7 +72,9 @@ const createRentalRequest = async (req, res, next) => {
 
     // Calculate price
     const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-    const totalPrice = parseFloat(product.rentalPrice) * days * parseInt(quantity);
+    const rentalSubtotal = parseFloat(product.rentalPrice) * days * parseInt(quantity);
+    const deliveryFee = deliveryOption === 'HOME_DELIVERY' ? 50.00 : 0.00;
+    const totalPrice = rentalSubtotal + deliveryFee;
 
     const order = await prisma.rentalOrder.create({
       data: {
@@ -75,10 +86,37 @@ const createRentalRequest = async (req, res, next) => {
         totalPrice,
         notes,
         status: 'PENDING',
+        deliveryOption: deliveryOption === 'HOME_DELIVERY' ? 'HOME_DELIVERY' : 'PICKUP',
+        deliveryAddress: deliveryOption === 'HOME_DELIVERY' ? deliveryAddress : null,
+        contactPhone: contactPhone || null,
+        deliveryStatus: 'PENDING_APPROVAL',
+        deliveryFee,
       },
       include: {
         product: { select: { name: true, imageUrl: true } },
         user: { select: { name: true, email: true } },
+      },
+    });
+
+    // 🔔 Notify Customer
+    await prisma.notification.create({
+      data: {
+        userId,
+        title: `Order #${order.id} Placed Successfully`,
+        message: `Your rental order for "${product.name}" has been submitted (${order.deliveryOption === 'HOME_DELIVERY' ? 'Home Delivery' : 'Store Pickup'}). Awaiting approval.`,
+        type: 'ORDER_PLACED',
+        orderId: order.id,
+      },
+    });
+
+    // 🔔 Notify Admins
+    await prisma.notification.create({
+      data: {
+        role: 'ADMIN',
+        title: `New Order #${order.id} Received`,
+        message: `${order.user.name} placed order #${order.id} for "${product.name}" (Qty: ${order.quantity}, Total: ₹${order.totalPrice}). ${order.deliveryOption === 'HOME_DELIVERY' ? 'Home Delivery to: ' + (deliveryAddress || 'Address on file') : 'Store Pickup'}.`,
+        type: 'ORDER_PLACED',
+        orderId: order.id,
       },
     });
 
@@ -252,13 +290,47 @@ const updateOrderStatus = async (req, res, next) => {
       // Update the rental order status
       return await tx.rentalOrder.update({
         where: { id: orderId },
-        data: { status },
+        data: {
+          status,
+          ...(status === 'APPROVED' && currentOrder.deliveryOption === 'HOME_DELIVERY' && currentOrder.deliveryStatus === 'PENDING_APPROVAL' ? { deliveryStatus: 'DELIVERY_APPROVED' } : {}),
+        },
         include: {
           product: { select: { id: true, name: true, totalStock: true } },
           user: { select: { id: true, name: true, email: true } },
         },
       });
     });
+
+    // 🔔 Notify Customer about Status Change
+    try {
+      let clientTitle = `Order #${orderId} ${status}`;
+      let clientMessage = `Your order for "${currentOrder.product.name}" is now ${status.toLowerCase()}.`;
+
+      if (status === 'APPROVED') {
+        clientTitle = `Order #${orderId} Approved!`;
+        clientMessage = currentOrder.deliveryOption === 'HOME_DELIVERY'
+          ? `Great news! Your order for "${currentOrder.product.name}" is approved. Home delivery is approved and being scheduled for dispatch.`
+          : `Great news! Your order for "${currentOrder.product.name}" is approved and ready for pickup at our store.`;
+      } else if (status === 'REJECTED') {
+        clientTitle = `Order #${orderId} Declined`;
+        clientMessage = `Your order for "${currentOrder.product.name}" could not be approved at this time.`;
+      } else if (status === 'RETURNED') {
+        clientTitle = `Order #${orderId} Completed`;
+        clientMessage = `Your costume rental for "${currentOrder.product.name}" has been marked as returned. Thank you!`;
+      }
+
+      await prisma.notification.create({
+        data: {
+          userId: currentOrder.userId,
+          title: clientTitle,
+          message: clientMessage,
+          type: 'ORDER_UPDATE',
+          orderId,
+        },
+      });
+    } catch (notifErr) {
+      console.warn('Notification create warning:', notifErr.message);
+    }
 
     res.json({ success: true, data: updatedOrder });
   } catch (err) {
@@ -270,15 +342,67 @@ const updateOrderStatus = async (req, res, next) => {
 };
 
 /**
+ * PATCH /api/admin/orders/:id/delivery-status
+ * Admin: Update delivery tracking status (DELIVERY_APPROVED, OUT_FOR_DELIVERY, DELIVERED)
+ */
+const updateDeliveryStatus = async (req, res, next) => {
+  try {
+    const { deliveryStatus } = req.body;
+    const validDeliveryStatuses = ['PENDING_APPROVAL', 'DELIVERY_APPROVED', 'OUT_FOR_DELIVERY', 'DELIVERED'];
+
+    if (!validDeliveryStatuses.includes(deliveryStatus)) {
+      return res.status(400).json({ success: false, message: 'Invalid delivery status' });
+    }
+
+    const orderId = parseInt(req.params.id);
+    const order = await prisma.rentalOrder.update({
+      where: { id: orderId },
+      data: { deliveryStatus },
+      include: {
+        product: { select: { id: true, name: true, totalStock: true } },
+        user: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    const labels = {
+      DELIVERY_APPROVED: 'Home Delivery Approved',
+      OUT_FOR_DELIVERY: 'Out for Delivery',
+      DELIVERED: 'Delivered to Address',
+      PENDING_APPROVAL: 'Delivery Pending Approval',
+    };
+
+    // 🔔 Notify Customer
+    try {
+      await prisma.notification.create({
+        data: {
+          userId: order.userId,
+          title: `Delivery: ${labels[deliveryStatus]} (#${order.id})`,
+          message: `Your costume order for "${order.product.name}" is now: ${labels[deliveryStatus]}.${order.deliveryAddress ? ' Address: ' + order.deliveryAddress : ''}`,
+          type: 'DELIVERY_UPDATE',
+          orderId: order.id,
+        },
+      });
+    } catch (notifErr) {
+      console.warn('Notification create warning:', notifErr.message);
+    }
+
+    res.json({ success: true, data: order });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * GET /api/admin/dashboard
  * Admin: Get summary statistics
  */
 const getDashboardStats = async (req, res, next) => {
   try {
-    const [totalProducts, totalOrders, pendingOrders, totalUsers, revenueResult] = await Promise.all([
+    const [totalProducts, totalOrders, pendingOrders, pendingDeliveries, totalUsers, revenueResult] = await Promise.all([
       prisma.product.count({ where: { isActive: true } }),
       prisma.rentalOrder.count(),
       prisma.rentalOrder.count({ where: { status: 'PENDING' } }),
+      prisma.rentalOrder.count({ where: { deliveryOption: 'HOME_DELIVERY', deliveryStatus: 'PENDING_APPROVAL' } }),
       prisma.user.count({ where: { role: 'CLIENT' } }),
       prisma.rentalOrder.aggregate({
         _sum: { totalPrice: true },
@@ -292,6 +416,7 @@ const getDashboardStats = async (req, res, next) => {
         totalProducts,
         totalOrders,
         pendingOrders,
+        pendingDeliveries,
         totalUsers,
         totalRevenue: revenueResult._sum.totalPrice || 0,
       },
@@ -307,5 +432,6 @@ module.exports = {
   cancelOrder,
   getAllOrders,
   updateOrderStatus,
+  updateDeliveryStatus,
   getDashboardStats,
 };

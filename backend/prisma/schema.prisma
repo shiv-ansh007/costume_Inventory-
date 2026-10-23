@@ -11,14 +11,15 @@ datasource db {
 }
 
 model User {
-  id           Int           @id @default(autoincrement())
-  name         String        @db.VarChar(255)
-  email        String        @unique @db.VarChar(255)
-  password     String        @db.VarChar(255)
-  role         Role          @default(CLIENT)
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
-  rentalOrders RentalOrder[]
+  id            Int            @id @default(autoincrement())
+  name          String         @db.VarChar(255)
+  email         String         @unique @db.VarChar(255)
+  password      String         @db.VarChar(255)
+  role          Role           @default(CLIENT)
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  rentalOrders  RentalOrder[]
+  notifications Notification[]
 
   @@map("users")
 }
@@ -43,22 +44,43 @@ model Product {
 }
 
 model RentalOrder {
-  id         Int         @id @default(autoincrement())
-  userId     Int         @map("user_id")
-  productId  Int         @map("product_id")
-  startDate  DateTime    @map("start_date") @db.Date
-  endDate    DateTime    @map("end_date") @db.Date
-  quantity   Int         @default(1)
-  totalPrice Decimal     @db.Decimal(10, 2) @map("total_price")
-  status     OrderStatus @default(PENDING)
-  notes      String?     @db.Text
-  createdAt  DateTime    @default(now()) @map("created_at")
-  updatedAt  DateTime    @updatedAt @map("updated_at")
+  id              Int            @id @default(autoincrement())
+  userId          Int            @map("user_id")
+  productId       Int            @map("product_id")
+  startDate       DateTime       @map("start_date") @db.Date
+  endDate         DateTime       @map("end_date") @db.Date
+  quantity        Int            @default(1)
+  totalPrice      Decimal        @db.Decimal(10, 2) @map("total_price")
+  status          OrderStatus    @default(PENDING)
+  notes           String?        @db.Text
+  deliveryOption  DeliveryOption @default(PICKUP) @map("delivery_option")
+  deliveryAddress String?        @map("delivery_address") @db.Text
+  contactPhone    String?        @map("contact_phone") @db.VarChar(50)
+  deliveryStatus  DeliveryStatus @default(PENDING_APPROVAL) @map("delivery_status")
+  deliveryFee     Decimal?       @default(0.00) @map("delivery_fee") @db.Decimal(10, 2)
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@map("rental_orders")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @map("user_id")
+  role      Role?
+  title     String   @db.VarChar(255)
+  message   String   @db.Text
+  type      String   @default("ORDER") @db.VarChar(50)
+  orderId   Int?     @map("order_id")
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
 }
 
 enum Role {
@@ -78,4 +100,16 @@ enum OrderStatus {
   REJECTED
   RETURNED
   CANCELLED
+}
+
+enum DeliveryOption {
+  PICKUP
+  HOME_DELIVERY
+}
+
+enum DeliveryStatus {
+  PENDING_APPROVAL
+  DELIVERY_APPROVED
+  OUT_FOR_DELIVERY
+  DELIVERED
 }

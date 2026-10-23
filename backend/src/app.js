@@ -5,6 +5,7 @@ const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
 const rentalRoutes = require('./routes/rentalRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
 const app = express();
@@ -29,6 +30,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/rentals', rentalRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // ─── Error Handling ───────────────────────────────────────────────────────────
 app.use(notFound);

@@ -7,6 +7,7 @@ const {
   cancelOrder,
   getAllOrders,
   updateOrderStatus,
+  updateDeliveryStatus,
   getDashboardStats,
 } = require('../controllers/rentalController');
 
@@ -41,5 +42,8 @@ router.get('/admin/orders', protect, adminOnly, getAllOrders);
 
 // PATCH /api/rentals/admin/orders/:id/status
 router.patch('/admin/orders/:id/status', protect, adminOnly, updateOrderStatus);
+
+// PATCH /api/rentals/admin/orders/:id/delivery-status
+router.patch('/admin/orders/:id/delivery-status', protect, adminOnly, updateDeliveryStatus);
 
 module.exports = router;
