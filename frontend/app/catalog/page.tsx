@@ -45,7 +45,6 @@ export default function CatalogPage() {
       if (search) params.search = search;
       if (category !== 'All') params.category = category;
       if (type !== 'All') params.type = type;
-
       const res = await productsApi.getAll(params);
       setProducts(res.data);
       setPagination(res.pagination);
@@ -56,85 +55,152 @@ export default function CatalogPage() {
     }
   }, [search, category, type, page]);
 
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+  useEffect(() => { setPage(1); }, [search, category, type]);
 
-  // Reset page on filter change
-  useEffect(() => {
-    setPage(1);
-  }, [search, category, type]);
+  const hasFilters = search || category !== 'All' || type !== 'All';
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Costume Catalog</h1>
+    <div style={{ maxWidth: '80rem', margin: '0 auto', padding: 'clamp(1.5rem, 4vw, 2.5rem) 1.25rem' }}>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-6 items-center">
-        <input
-          id="search-input"
-          type="text"
-          placeholder="Search costumes..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-56 focus:outline-none focus:border-gray-500"
-        />
-        <select
-          id="category-filter"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
-        >
-          {CATEGORIES.map((c) => (
-            <option key={c} value={c}>{c === 'All' ? 'All Categories' : c}</option>
-          ))}
-        </select>
-        <select
-          id="type-filter"
-          value={type}
-          onChange={(e) => setType(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
-        >
-          {TYPES.map((t) => (
-            <option key={t} value={t}>{t === 'All' ? 'All Types' : t}</option>
-          ))}
-        </select>
-        {(search || category !== 'All' || type !== 'All') && (
-          <button
-            onClick={() => { setSearch(''); setCategory('All'); setType('All'); }}
-            className="text-sm text-gray-500 hover:text-gray-800 underline"
+      {/* Page Header */}
+      <div style={{ marginBottom: '1.75rem' }}>
+        <h1 className="section-heading" style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}>
+          Costume Catalog
+        </h1>
+        <div className="brand-divider" />
+        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.625rem' }}>
+          Discover premium costumes for every occasion
+        </p>
+      </div>
+
+      {/* Filters Bar */}
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '0.75rem',
+        alignItems: 'flex-end',
+        marginBottom: '1.75rem',
+        padding: '1rem 1.25rem',
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-card)',
+        boxShadow: 'var(--shadow-card)',
+      }}>
+        {/* Search */}
+        <div style={{ position: 'relative', flex: '1 1 12rem', minWidth: '12rem' }}>
+          <svg
+            style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.4, pointerEvents: 'none' }}
+            width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"
           >
-            Clear filters
-          </button>
-        )}
-        {pagination && (
-          <span className="ml-auto text-sm text-gray-500">{pagination.total} costume{pagination.total !== 1 ? 's' : ''} found</span>
-        )}
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            id="search-input"
+            type="text"
+            placeholder="Search costumes..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="form-input"
+            style={{ paddingLeft: '2.25rem' }}
+          />
+        </div>
+
+        {/* Category */}
+        <div style={{ flex: '1 1 9rem', minWidth: '9rem' }}>
+          <select
+            id="category-filter"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="form-input"
+            style={{ cursor: 'pointer' }}
+          >
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c}>{c === 'All' ? 'All Categories' : c}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Type */}
+        <div style={{ flex: '1 1 8rem', minWidth: '8rem' }}>
+          <select
+            id="type-filter"
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            className="form-input"
+            style={{ cursor: 'pointer' }}
+          >
+            {TYPES.map((t) => (
+              <option key={t} value={t}>{t === 'All' ? 'All Types' : t}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Clear + Count */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginLeft: 'auto' }}>
+          {hasFilters && (
+            <button
+              onClick={() => { setSearch(''); setCategory('All'); setType('All'); }}
+              style={{
+                fontSize: '0.8125rem',
+                color: 'var(--brand-primary)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: 500,
+                textDecoration: 'underline',
+                padding: 0,
+              }}
+            >
+              Clear filters
+            </button>
+          )}
+          {pagination && (
+            <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+              <strong style={{ color: 'var(--text-primary)' }}>{pagination.total}</strong> costume{pagination.total !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Grid */}
       {isLoading ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="product-catalog-grid">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="border border-gray-200 rounded-lg bg-white animate-pulse">
-              <div className="h-52 bg-gray-200 rounded-t-lg" />
-              <div className="p-4 space-y-2">
-                <div className="h-3 bg-gray-200 rounded w-1/2" />
-                <div className="h-4 bg-gray-200 rounded w-3/4" />
-                <div className="h-3 bg-gray-200 rounded w-1/3" />
+            <div key={i} style={{ borderRadius: 'var(--radius-card)', overflow: 'hidden', border: '1px solid var(--border)' }}>
+              <div className="skeleton" style={{ aspectRatio: '4/3' }} />
+              <div style={{ padding: '0.875rem 1rem', background: 'var(--surface)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div className="skeleton" style={{ height: '0.625rem', width: '40%' }} />
+                <div className="skeleton" style={{ height: '0.875rem', width: '75%' }} />
+                <div className="skeleton" style={{ height: '0.625rem', width: '55%' }} />
               </div>
             </div>
           ))}
         </div>
       ) : error ? (
-        <div className="text-center py-16 text-red-600">{error}</div>
+        <div style={{
+          textAlign: 'center',
+          padding: '4rem 1rem',
+          color: 'var(--error)',
+          background: '#FFF0F0',
+          borderRadius: 'var(--radius-card)',
+          border: '1px solid #F5AABA',
+          fontSize: '0.9rem',
+        }}>{error}</div>
       ) : products.length === 0 ? (
-        <div className="text-center py-16 text-gray-500">
-          <p className="text-lg mb-2">No costumes found</p>
-          <p className="text-sm">Try adjusting your filters.</p>
+        <div style={{
+          textAlign: 'center',
+          padding: '5rem 1rem',
+          background: 'var(--surface)',
+          border: '1px dashed var(--brand-blush)',
+          borderRadius: 'var(--radius-card)',
+        }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.4 }}>👗</div>
+          <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>No costumes found</p>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Try adjusting your filters or search terms.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="product-catalog-grid">
           {products.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}
@@ -143,21 +209,38 @@ export default function CatalogPage() {
 
       {/* Pagination */}
       {pagination && pagination.pages > 1 && (
-        <div className="flex justify-center items-center gap-2 mt-8">
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '0.75rem',
+          marginTop: '2.5rem',
+        }}>
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="px-3 py-1.5 border border-gray-300 rounded text-sm disabled:opacity-40 hover:bg-gray-50 transition-colors"
+            className="btn-secondary"
+            style={{ padding: '0.5rem 1.125rem' }}
           >
-            Previous
+            ← Previous
           </button>
-          <span className="text-sm text-gray-600">Page {page} of {pagination.pages}</span>
+          <span style={{
+            padding: '0.5rem 1rem',
+            fontSize: '0.8125rem',
+            color: 'var(--text-secondary)',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+          }}>
+            Page <strong style={{ color: 'var(--text-primary)' }}>{page}</strong> of {pagination.pages}
+          </span>
           <button
             onClick={() => setPage((p) => Math.min(pagination.pages, p + 1))}
             disabled={page === pagination.pages}
-            className="px-3 py-1.5 border border-gray-300 rounded text-sm disabled:opacity-40 hover:bg-gray-50 transition-colors"
+            className="btn-secondary"
+            style={{ padding: '0.5rem 1.125rem' }}
           >
-            Next
+            Next →
           </button>
         </div>
       )}

@@ -33,33 +33,85 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-sm">
-        <div className="bg-white border border-gray-200 rounded-lg p-8">
-          <h1 className="text-xl font-bold text-gray-900 mb-6">Create Account</h1>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--gradient-soft)',
+      padding: '1.5rem',
+    }}>
+      <div style={{ width: '100%', maxWidth: '24rem' }}>
+        {/* Brand logo & title */}
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div style={{
+            width: '64px',
+            height: '64px',
+            margin: '0 auto 0.75rem',
+            borderRadius: '50%',
+            overflow: 'hidden',
+            border: '2.5px solid var(--brand-gold)',
+            boxShadow: '0 4px 14px rgba(196,154,82,0.35)',
+            background: '#000',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <img
+              src="/dgs-logo.jpg"
+              alt="DGS's Creation Logo"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={(e) => {
+                (e.target as HTMLElement).style.display = 'none';
+              }}
+            />
+          </div>
+          <h1 style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontSize: '1.5rem',
+            fontWeight: 700,
+            color: 'var(--brand-primary)',
+            margin: '0.25rem 0 0.25rem',
+          }}>Create Your Account</h1>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            Join DGS&apos;s Creation CostumeRent
+          </p>
+        </div>
 
+        <div className="card" style={{ padding: '2rem' }}>
           {error && (
-            <div className="mb-4 px-3 py-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-              {error}
+            <div style={{
+              marginBottom: '1.25rem',
+              padding: '0.75rem 1rem',
+              background: '#FFF0F0',
+              border: '1px solid #F5AABA',
+              borderRadius: '8px',
+              fontSize: '0.8125rem',
+              color: 'var(--error)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}>
+              <span>⚠️</span> {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.125rem' }}>
             <div>
-              <label htmlFor="name" className="block text-xs font-medium text-gray-700 mb-1">Full Name</label>
+              <label htmlFor="name" className="form-label">Full Name</label>
               <input
                 id="name"
                 type="text"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
-                placeholder="John Doe"
+                className="form-input"
+                placeholder="Jane Doe"
               />
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+              <label htmlFor="email" className="form-label">Email address</label>
               <input
                 id="email"
                 type="email"
@@ -67,13 +119,13 @@ export default function RegisterPage() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+                className="form-input"
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-xs font-medium text-gray-700 mb-1">Password</label>
+              <label htmlFor="password" className="form-label">Password</label>
               <input
                 id="password"
                 type="password"
@@ -81,7 +133,7 @@ export default function RegisterPage() {
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+                className="form-input"
                 placeholder="Min. 6 characters"
               />
             </div>
@@ -90,15 +142,18 @@ export default function RegisterPage() {
               id="register-submit-btn"
               type="submit"
               disabled={isLoading}
-              className="w-full bg-gray-900 text-white rounded-lg py-2 text-sm font-medium hover:bg-gray-700 transition-colors disabled:opacity-50"
+              className="btn-primary"
+              style={{ padding: '0.75rem', fontSize: '0.9375rem', marginTop: '0.25rem', width: '100%' }}
             >
-              {isLoading ? 'Creating account...' : 'Create Account'}
+              {isLoading ? 'Creating account…' : 'Create Account'}
             </button>
           </form>
 
-          <p className="mt-4 text-center text-sm text-gray-600">
+          <p style={{ marginTop: '1.25rem', textAlign: 'center', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
             Already have an account?{' '}
-            <Link href="/login" className="text-gray-900 font-medium hover:underline">Sign in</Link>
+            <Link href="/login" style={{ color: 'var(--brand-primary)', fontWeight: 600, textDecoration: 'none' }}>
+              Sign in
+            </Link>
           </p>
         </div>
       </div>

@@ -110,7 +110,7 @@ export default function ProductDetailPage() {
         contactPhone: contactPhone ? contactPhone.trim() : undefined,
       });
       setOrderSuccess(true);
-      setSuccess(`Rental order placed! ${deliveryOption === 'HOME_DELIVERY' ? 'Home Delivery requested to ' + deliveryAddress : 'Store pickup chosen'}. Redirecting to your orders...`);
+      setSuccess(`Rental request submitted successfully! ${deliveryOption === 'HOME_DELIVERY' ? 'Home Delivery booked' : 'Store pickup chosen'}. Redirecting to your orders...`);
       setTimeout(() => {
         router.push('/my-orders');
       }, 1500);
@@ -124,13 +124,18 @@ export default function ProductDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8 animate-pulse">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="h-96 bg-gray-200 rounded-lg" />
-          <div className="space-y-4">
-            <div className="h-6 bg-gray-200 rounded w-3/4" />
-            <div className="h-4 bg-gray-200 rounded w-1/2" />
-            <div className="h-20 bg-gray-200 rounded" />
+      <div style={{ maxWidth: '72rem', margin: '0 auto', padding: '2.5rem 1rem' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: '2.5rem',
+        }}>
+          <div className="skeleton" style={{ height: '420px', borderRadius: 'var(--radius-card)' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div className="skeleton" style={{ height: '28px', width: '40%', borderRadius: '6px' }} />
+            <div className="skeleton" style={{ height: '36px', width: '80%', borderRadius: '6px' }} />
+            <div className="skeleton" style={{ height: '80px', borderRadius: '8px' }} />
+            <div className="skeleton" style={{ height: '240px', borderRadius: 'var(--radius-card)' }} />
           </div>
         </div>
       </div>
@@ -138,179 +143,438 @@ export default function ProductDetailPage() {
   }
 
   if (!product) {
-    return <div className="text-center py-16 text-gray-500">Product not found.</div>;
+    return (
+      <div style={{ textAlign: 'center', padding: '5rem 1rem', color: 'var(--text-secondary)' }}>
+        <p style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Product not found.</p>
+        <button onClick={() => router.push('/catalog')} className="btn-secondary">
+          ← Return to Catalog
+        </button>
+      </div>
+    );
   }
 
+  const estimatedTotal = (
+    (availability?.priceEstimate || (product.rentalPrice ? Number(product.rentalPrice) : 0)) +
+    (deliveryOption === 'HOME_DELIVERY' ? 50 : 0)
+  );
+
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-      <button onClick={() => router.back()} className="text-sm text-gray-500 hover:text-gray-800 mb-6 flex items-center gap-1">
-        ← Back
+    <div style={{ maxWidth: '74rem', margin: '0 auto', padding: '1.5rem 1rem 3.5rem' }}>
+      {/* Breadcrumb / Back button */}
+      <button
+        onClick={() => router.back()}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.375rem',
+          fontSize: '0.875rem',
+          color: 'var(--text-secondary)',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          marginBottom: '1.5rem',
+          padding: '0.25rem 0',
+          fontWeight: 500,
+          transition: 'color 0.15s',
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--brand-primary)')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
+      >
+        ← Back to Catalog
       </button>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Image */}
-        <div className="relative h-80 md:h-96 bg-gray-100 rounded-lg overflow-hidden">
-          {product.imageUrl ? (
-            <Image src={product.imageUrl} alt={product.name} fill className="object-cover" />
-          ) : (
-            <div className="flex items-center justify-center h-full text-gray-400 text-5xl">🎭</div>
-          )}
-        </div>
-
-        {/* Details */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+        gap: '2.5rem',
+        alignItems: 'start',
+      }}>
+        {/* Left Column: Product Visual Showcase */}
         <div>
-          <p className="text-xs text-gray-400 uppercase mb-1">{product.category || 'Uncategorized'}</p>
-          <h1 className="text-2xl font-bold text-gray-900 mb-3">{product.name}</h1>
-
-          {product.description && (
-            <p className="text-sm text-gray-600 mb-4 leading-relaxed">{product.description}</p>
-          )}
-
-          <div className="border border-gray-200 rounded-lg p-4 mb-5 space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-500">Type</span>
-              <span className="font-medium">{product.type}</span>
-            </div>
-            {product.rentalPrice && (
-              <div className="flex justify-between">
-                <span className="text-gray-500">Rental Price</span>
-                <span className="font-medium">₹{Number(product.rentalPrice).toFixed(0)} / day</span>
+          <div style={{
+            position: 'relative',
+            height: '460px',
+            borderRadius: 'var(--radius-card)',
+            overflow: 'hidden',
+            backgroundColor: 'var(--surface-muted)',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--shadow-card)',
+          }}>
+            {product.imageUrl ? (
+              <Image
+                src={product.imageUrl}
+                alt={product.name}
+                fill
+                priority
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 50vw"
+              />
+            ) : (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
+                background: 'var(--gradient-soft)',
+                color: 'var(--brand-primary)',
+              }}>
+                <span style={{ fontSize: '4.5rem', opacity: 0.8 }}>👗</span>
+                <span style={{ fontSize: '0.875rem', fontWeight: 600, marginTop: '0.5rem', color: 'var(--brand-primary)' }}>
+                  DGS&apos;s Creation Collection
+                </span>
               </div>
             )}
-            {product.salePrice && (
-              <div className="flex justify-between">
-                <span className="text-gray-500">Sale Price</span>
-                <span className="font-medium">₹{Number(product.salePrice).toFixed(0)}</span>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span className="text-gray-500">Available Stock</span>
-              <span className={`font-semibold ${product.totalStock > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                {product.totalStock > 0 ? `${product.totalStock} units available` : 'Out of stock'}
-              </span>
+
+            {/* Type badge overlay */}
+            <div style={{
+              position: 'absolute',
+              top: '1rem',
+              left: '1rem',
+              background: 'rgba(36, 21, 29, 0.85)',
+              backdropFilter: 'blur(8px)',
+              color: 'var(--brand-ivory)',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              letterSpacing: '0.05em',
+              padding: '0.35rem 0.75rem',
+              borderRadius: '9999px',
+              border: '1px solid rgba(196,154,82,0.4)',
+            }}>
+              {product.type === 'RENT' ? '✨ RENTAL ONLY' : product.type === 'SALE' ? '🛍️ PURCHASE ONLY' : '✨ RENT OR BUY'}
             </div>
           </div>
 
-          {/* Rental Form */}
-          {(product.type === 'RENT' || product.type === 'BOTH') && (
-            <div className="border border-gray-200 rounded-lg p-4">
-              <h2 className="text-sm font-semibold text-gray-900 mb-3">Request Rental</h2>
+          {/* Boutique Trust Badges */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '0.75rem',
+            marginTop: '1.25rem',
+          }}>
+            <div style={{
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              padding: '0.75rem 0.5rem',
+              textAlign: 'center',
+            }}>
+              <span style={{ fontSize: '1.25rem', display: 'block' }}>🧼</span>
+              <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginTop: '0.25rem' }}>
+                Dry Cleaned
+              </span>
+              <span style={{ fontSize: '0.625rem', color: 'var(--text-secondary)' }}>Sanitized & Fresh</span>
+            </div>
+            <div style={{
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              padding: '0.75rem 0.5rem',
+              textAlign: 'center',
+            }}>
+              <span style={{ fontSize: '1.25rem', display: 'block' }}>✨</span>
+              <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginTop: '0.25rem' }}>
+                Premium Fabric
+              </span>
+              <span style={{ fontSize: '0.625rem', color: 'var(--text-secondary)' }}>DGS&apos;s Boutique Quality</span>
+            </div>
+            <div style={{
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              padding: '0.75rem 0.5rem',
+              textAlign: 'center',
+            }}>
+              <span style={{ fontSize: '1.25rem', display: 'block' }}>🚚</span>
+              <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginTop: '0.25rem' }}>
+                Express Delivery
+              </span>
+              <span style={{ fontSize: '0.625rem', color: 'var(--text-secondary)' }}>Doorstep or Pickup</span>
+            </div>
+          </div>
+        </div>
 
-              <div className="grid grid-cols-2 gap-3 mb-3">
+        {/* Right Column: Costume Information & Rental Booking Card */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div>
+            <span style={{
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.12em',
+              color: 'var(--brand-gold)',
+            }}>
+              {product.category || 'Costume Rental'}
+            </span>
+            <h1 style={{
+              fontFamily: "'Playfair Display', Georgia, serif",
+              fontSize: '1.875rem',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              margin: '0.35rem 0 0.75rem',
+              lineHeight: 1.25,
+            }}>
+              {product.name}
+            </h1>
+
+            {product.description && (
+              <p style={{
+                fontSize: '0.9375rem',
+                color: 'var(--text-secondary)',
+                lineHeight: 1.6,
+                marginBottom: '1rem',
+              }}>
+                {product.description}
+              </p>
+            )}
+
+            {/* Pricing Snapshot Card */}
+            <div style={{
+              background: 'var(--surface-muted)',
+              border: '1px solid var(--brand-blush)',
+              borderRadius: 'var(--radius-card)',
+              padding: '1rem 1.25rem',
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '1rem',
+            }}>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Rental Rate
+                </span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.375rem' }}>
+                  <span style={{
+                    fontFamily: "'Playfair Display', Georgia, serif",
+                    fontSize: '1.75rem',
+                    fontWeight: 700,
+                    color: 'var(--brand-primary)',
+                  }}>
+                    ₹{product.rentalPrice ? Number(product.rentalPrice).toFixed(0) : '—'}
+                  </span>
+                  <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>/ day</span>
+                </div>
+              </div>
+
+              {product.salePrice && (
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Start Date</label>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Purchase Price
+                  </span>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    ₹{Number(product.salePrice).toFixed(0)}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Stock Status
+                </span>
+                <div style={{
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  color: product.totalStock > 0 ? 'var(--success)' : 'var(--error)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                }}>
+                  <span>{product.totalStock > 0 ? '●' : '✕'}</span>
+                  <span>{product.totalStock > 0 ? `${product.totalStock} Available` : 'Out of Stock'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Booking Flow Card */}
+          {(product.type === 'RENT' || product.type === 'BOTH') && (
+            <div className="card" style={{ padding: '1.5rem', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+                <h2 style={{
+                  fontFamily: "'Playfair Display', Georgia, serif",
+                  fontSize: '1.15rem',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  margin: 0,
+                }}>
+                  Reserve This Outfit
+                </h2>
+                <span style={{
+                  fontSize: '0.75rem',
+                  color: 'var(--brand-gold)',
+                  fontWeight: 600,
+                  background: 'rgba(196,154,82,0.1)',
+                  padding: '0.2rem 0.5rem',
+                  borderRadius: '4px',
+                }}>
+                  Flexible Booking
+                </span>
+              </div>
+
+              {/* Date Pickers */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                gap: '0.875rem',
+                marginBottom: '1rem',
+              }}>
+                <div>
+                  <label htmlFor="start-date-input" className="form-label">Rental Start Date</label>
                   <input
                     id="start-date-input"
                     type="date"
                     min={today}
                     value={startDate}
                     onChange={(e) => { setStartDate(e.target.value); setAvailability(null); }}
-                    className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-gray-500"
+                    className="form-input"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">End Date</label>
+                  <label htmlFor="end-date-input" className="form-label">Return Date</label>
                   <input
                     id="end-date-input"
                     type="date"
                     min={tomorrow}
                     value={endDate}
                     onChange={(e) => { setEndDate(e.target.value); setAvailability(null); }}
-                    className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-gray-500"
+                    className="form-input"
                   />
                 </div>
               </div>
 
-              <div className="mb-3">
-                <label className="block text-xs text-gray-500 mb-1">Quantity</label>
+              {/* Quantity */}
+              <div style={{ marginBottom: '1.125rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.375rem' }}>
+                  <label htmlFor="quantity-input" className="form-label" style={{ margin: 0 }}>Quantity</label>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Max: {product.totalStock}</span>
+                </div>
                 <input
                   id="quantity-input"
                   type="number"
                   min={1}
                   max={product.totalStock}
                   value={quantity}
-                  onChange={(e) => setQuantity(Number(e.target.value))}
-                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-gray-500"
+                  onChange={(e) => setQuantity(Math.max(1, Math.min(product.totalStock, Number(e.target.value))))}
+                  className="form-input"
                 />
               </div>
 
-              <div className="mb-4">
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Delivery Preference</label>
-                <div className="grid grid-cols-2 gap-2">
+              {/* Delivery / Store Pickup Selection */}
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label className="form-label" style={{ marginBottom: '0.5rem' }}>Fulfillment Method</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                   <button
                     type="button"
                     onClick={() => setDeliveryOption('PICKUP')}
-                    className={`flex flex-col items-start p-3 border rounded-lg text-left transition-all ${
-                      deliveryOption === 'PICKUP'
-                        ? 'border-indigo-600 bg-indigo-50/60 ring-2 ring-indigo-500/20'
-                        : 'border-gray-200 hover:border-gray-300 bg-white'
-                    }`}
+                    style={{
+                      padding: '0.875rem 0.75rem',
+                      borderRadius: '8px',
+                      border: deliveryOption === 'PICKUP' ? '2px solid var(--brand-primary)' : '1px solid var(--border)',
+                      background: deliveryOption === 'PICKUP' ? 'var(--surface-muted)' : 'var(--surface)',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.15s',
+                    }}
                   >
-                    <div className="flex items-center justify-between w-full mb-1">
-                      <span className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-                        <span>🏪</span> Store Pickup
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                      <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        🏪 Store Pickup
                       </span>
-                      <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">FREE</span>
+                      <span style={{
+                        fontSize: '0.6875rem',
+                        fontWeight: 700,
+                        color: 'var(--success)',
+                        background: 'rgba(22,131,74,0.1)',
+                        padding: '0.125rem 0.375rem',
+                        borderRadius: '4px',
+                      }}>
+                        FREE
+                      </span>
                     </div>
-                    <span className="text-xs text-gray-500">Pick up in store</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Collect at our boutique</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setDeliveryOption('HOME_DELIVERY')}
-                    className={`flex flex-col items-start p-3 border rounded-lg text-left transition-all ${
-                      deliveryOption === 'HOME_DELIVERY'
-                        ? 'border-indigo-600 bg-indigo-50/60 ring-2 ring-indigo-500/20'
-                        : 'border-gray-200 hover:border-gray-300 bg-white'
-                    }`}
+                    style={{
+                      padding: '0.875rem 0.75rem',
+                      borderRadius: '8px',
+                      border: deliveryOption === 'HOME_DELIVERY' ? '2px solid var(--brand-primary)' : '1px solid var(--border)',
+                      background: deliveryOption === 'HOME_DELIVERY' ? 'var(--surface-muted)' : 'var(--surface)',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.15s',
+                    }}
                   >
-                    <div className="flex items-center justify-between w-full mb-1">
-                      <span className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-                        <span>🚚</span> Home Delivery
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                      <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        🚚 Home Delivery
                       </span>
-                      <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">+₹50</span>
+                      <span style={{
+                        fontSize: '0.6875rem',
+                        fontWeight: 700,
+                        color: 'var(--brand-primary)',
+                        background: 'rgba(143,18,63,0.1)',
+                        padding: '0.125rem 0.375rem',
+                        borderRadius: '4px',
+                      }}>
+                        +₹50
+                      </span>
                     </div>
-                    <span className="text-xs text-gray-500">Doorstep delivery</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Direct to your doorstep</span>
                   </button>
                 </div>
               </div>
 
+              {/* Delivery Details Fields */}
               {deliveryOption === 'HOME_DELIVERY' ? (
-                <div className="mb-4 p-3.5 bg-gray-50 border border-gray-200 rounded-lg space-y-3">
+                <div style={{
+                  padding: '1rem',
+                  background: 'var(--brand-ivory)',
+                  border: '1px solid var(--brand-blush)',
+                  borderRadius: '8px',
+                  marginBottom: '1.25rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem',
+                }}>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Delivery Address <span className="text-rose-500">*</span>
+                    <label htmlFor="delivery-address-input" className="form-label">
+                      Delivery Address <span style={{ color: 'var(--error)' }}>*</span>
                     </label>
                     <textarea
                       id="delivery-address-input"
                       value={deliveryAddress}
                       onChange={(e) => setDeliveryAddress(e.target.value)}
                       rows={2}
-                      placeholder="Flat / House No., Street, Area, City & PIN code..."
-                      className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-gray-900 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+                      placeholder="House / Flat No., Street, Landmark, City & PIN..."
+                      className="form-input"
+                      style={{ resize: 'none' }}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      WhatsApp / Contact Phone <span className="text-rose-500">*</span>
+                    <label htmlFor="contact-phone-input" className="form-label">
+                      WhatsApp / Mobile Contact <span style={{ color: 'var(--error)' }}>*</span>
                     </label>
                     <input
                       id="contact-phone-input"
                       type="tel"
                       value={contactPhone}
                       onChange={(e) => setContactPhone(e.target.value)}
-                      placeholder="e.g. 9876543210 (for WhatsApp order approval & updates)"
-                      className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-gray-900 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="e.g. 9876543210 (for dispatch & WhatsApp updates)"
+                      className="form-input"
                     />
                   </div>
-                  <p className="text-[11px] text-amber-700 flex items-center gap-1">
+                  <p style={{ fontSize: '0.75rem', color: 'var(--warning)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                     <span>ℹ️</span> Admin reviews & approves delivery before dispatch.
                   </p>
                 </div>
               ) : (
-                <div className="mb-4">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label htmlFor="contact-phone-input" className="form-label">
                     WhatsApp / Mobile Number (optional)
                   </label>
                   <input
@@ -318,99 +582,175 @@ export default function ProductDetailPage() {
                     type="tel"
                     value={contactPhone}
                     onChange={(e) => setContactPhone(e.target.value)}
-                    placeholder="e.g. 9876543210 (receive approval & pickup update on WhatsApp)"
-                    className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs text-gray-900 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="e.g. 9876543210 (receive WhatsApp updates)"
+                    className="form-input"
                   />
-                  <p className="text-[11px] text-gray-500 mt-1">
-                    Admin can send approval & pickup details directly to your WhatsApp.
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                    Receive order confirmation & pickup ready alert on WhatsApp.
                   </p>
                 </div>
               )}
 
-              <div className="mb-3">
-                <label className="block text-xs text-gray-500 mb-1">Notes (optional)</label>
+              {/* Special notes */}
+              <div style={{ marginBottom: '1.125rem' }}>
+                <label htmlFor="notes-input" className="form-label">Special Requests / Sizing Notes (optional)</label>
                 <textarea
                   id="notes-input"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={2}
-                  placeholder="Any special requirements..."
-                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-gray-500 resize-none"
+                  placeholder="e.g. Need matching belt or accessory adjustments..."
+                  className="form-input"
+                  style={{ resize: 'none' }}
                 />
               </div>
 
+              {/* Check Availability CTA */}
               <button
                 id="check-availability-btn"
+                type="button"
                 onClick={checkAvailability}
                 disabled={isChecking}
-                className="w-full mb-3 px-4 py-2 border border-gray-900 text-gray-900 rounded text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="btn-secondary"
+                style={{ width: '100%', marginBottom: '1rem', padding: '0.625rem' }}
               >
-                {isChecking ? 'Checking...' : 'Check Availability'}
+                {isChecking ? 'Checking Boutique Availability…' : '🔍 Check Availability & Calculate Total'}
               </button>
 
+              {/* Availability & Bill Breakdown */}
               {availability && (
-                <div className={`mb-3 p-3 rounded text-sm ${availability.isAvailable ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                <div style={{
+                  marginBottom: '1.25rem',
+                  padding: '1rem',
+                  borderRadius: '8px',
+                  background: availability.isAvailable ? 'rgba(22,131,74,0.06)' : 'rgba(192,57,75,0.06)',
+                  border: `1px solid ${availability.isAvailable ? 'rgba(22,131,74,0.25)' : 'rgba(192,57,75,0.25)'}`,
+                }}>
                   {availability.isAvailable ? (
-                    <div className="space-y-1">
-                      <p className="text-green-700 font-medium">✓ Available — {availability.availableQuantity} unit(s) free</p>
-                      <div className="text-xs text-gray-600 pt-1 border-t border-green-200/60 mt-1.5 space-y-0.5">
-                        <div className="flex justify-between">
-                          <span>Rental ({availability.rentalDays} day{availability.rentalDays !== 1 ? 's' : ''}):</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', color: 'var(--success)', fontWeight: 600, fontSize: '0.875rem' }}>
+                        <span>✓</span> Available for selected dates ({availability.availableQuantity} in stock)
+                      </div>
+                      <div style={{
+                        borderTop: '1px solid rgba(22,131,74,0.15)',
+                        paddingTop: '0.5rem',
+                        fontSize: '0.8125rem',
+                        color: 'var(--text-secondary)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.25rem',
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span>Rental Duration ({availability.rentalDays} day{availability.rentalDays !== 1 ? 's' : ''}):</span>
                           <span>₹{(availability.priceEstimate || 0).toFixed(0)}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span>Delivery Fee ({deliveryOption === 'HOME_DELIVERY' ? 'Home' : 'Pickup'}):</span>
-                          <span>{deliveryOption === 'HOME_DELIVERY' ? '₹50' : '₹0'}</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span>Fulfillment ({deliveryOption === 'HOME_DELIVERY' ? 'Home Delivery' : 'Store Pickup'}):</span>
+                          <span>{deliveryOption === 'HOME_DELIVERY' ? '₹50' : 'FREE'}</span>
                         </div>
-                        <div className="flex justify-between font-bold text-gray-900 pt-1 border-t border-green-200">
-                          <span>Total Amount:</span>
-                          <span className="text-indigo-700">₹{((availability.priceEstimate || 0) + (deliveryOption === 'HOME_DELIVERY' ? 50 : 0)).toFixed(0)}</span>
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          fontWeight: 700,
+                          fontSize: '0.9375rem',
+                          color: 'var(--brand-primary)',
+                          borderTop: '1px dashed rgba(22,131,74,0.2)',
+                          paddingTop: '0.375rem',
+                          marginTop: '0.25rem',
+                        }}>
+                          <span>Total Payable:</span>
+                          <span>₹{estimatedTotal.toFixed(0)}</span>
                         </div>
                       </div>
                     </div>
                   ) : (
-                    <p className="text-red-700 font-medium">✗ Not available for these dates</p>
+                    <div style={{ color: 'var(--error)', fontWeight: 600, fontSize: '0.875rem' }}>
+                      ✕ Sorry, this costume is fully booked for those dates. Try adjusting your dates.
+                    </div>
                   )}
                 </div>
               )}
 
-              {error && <p className="text-red-600 text-xs mb-3">{error}</p>}
-              {success && <p className="text-green-600 text-xs mb-3">{success}</p>}
+              {/* Status messages */}
+              {error && (
+                <div style={{
+                  marginBottom: '1rem',
+                  padding: '0.625rem 0.875rem',
+                  background: '#FFF0F0',
+                  border: '1px solid #F5AABA',
+                  borderRadius: '6px',
+                  color: 'var(--error)',
+                  fontSize: '0.8125rem',
+                }}>
+                  ⚠️ {error}
+                </div>
+              )}
 
+              {success && (
+                <div style={{
+                  marginBottom: '1rem',
+                  padding: '0.625rem 0.875rem',
+                  background: 'rgba(22,131,74,0.08)',
+                  border: '1px solid rgba(22,131,74,0.3)',
+                  borderRadius: '6px',
+                  color: 'var(--success)',
+                  fontSize: '0.8125rem',
+                }}>
+                  🎉 {success}
+                </div>
+              )}
+
+              {/* Submit Rental Order */}
               <button
                 id="submit-rental-btn"
+                type="button"
                 onClick={submitRequest}
                 disabled={isSubmitting || orderSuccess || product.totalStock <= 0 || (availability !== null && !availability.isAvailable)}
-                className="w-full px-4 py-2.5 bg-gray-900 text-white rounded text-sm font-medium hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="btn-primary"
+                style={{
+                  width: '100%',
+                  padding: '0.875rem',
+                  fontSize: '0.9375rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  boxShadow: '0 4px 14px rgba(143,18,63,0.3)',
+                }}
               >
                 {isSubmitting ? (
                   <>
-                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    <svg style={{ animation: 'spin 1s linear infinite', height: '1.125rem', width: '1.125rem' }} fill="none" viewBox="0 0 24 24">
+                      <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                     </svg>
-                    <span>Submitting Order...</span>
+                    <span>Submitting Booking…</span>
                   </>
                 ) : orderSuccess ? (
-                  '✓ Order Placed! Redirecting...'
+                  '✓ Booking Placed! Redirecting…'
                 ) : product.totalStock <= 0 ? (
                   'Out of Stock'
                 ) : user ? (
-                  `Submit Rental Request · ₹${(
-                    (availability?.priceEstimate || (product.rentalPrice ? Number(product.rentalPrice) : 0)) +
-                    (deliveryOption === 'HOME_DELIVERY' ? 50 : 0)
-                  ).toFixed(0)}`
+                  `Reserve Now · ₹${estimatedTotal.toFixed(0)}`
                 ) : (
-                  'Login to Request'
+                  'Sign In to Reserve'
                 )}
               </button>
 
               {orderSuccess && (
-                <div className="mt-2 text-center">
+                <div style={{ marginTop: '0.75rem', textAlign: 'center' }}>
                   <button
                     type="button"
                     onClick={() => router.push('/my-orders')}
-                    className="text-xs text-indigo-600 font-semibold hover:underline"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--brand-primary)',
+                      fontWeight: 600,
+                      fontSize: '0.8125rem',
+                      cursor: 'pointer',
+                      textDecoration: 'underline',
+                    }}
                   >
                     Go to My Orders now →
                   </button>

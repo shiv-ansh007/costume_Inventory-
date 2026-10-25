@@ -1,23 +1,24 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 
-const inter = Inter({ subsets: ['latin'] });
-
 export const metadata: Metadata = {
-  title: 'CostumeRent — Costume Rental Shop',
+  title: 'CostumeRent — Premium Costume Rental',
   description: 'Browse, book, and manage costume rentals online. Find the perfect costume for any occasion.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className} suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      </head>
+      <body suppressHydrationWarning style={{ margin: 0, background: 'var(--background)' }}>
         <AuthProvider>
           <Navbar />
-          <main className="min-h-screen bg-gray-50">
+          <main style={{ minHeight: 'calc(100vh - 3.75rem)', background: 'var(--background)' }}>
             {children}
           </main>
         </AuthProvider>

@@ -28,20 +28,49 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-sm">
-        <div className="bg-white border border-gray-200 rounded-lg p-8">
-          <h1 className="text-xl font-bold text-gray-900 mb-6">Sign In</h1>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--gradient-soft)',
+      padding: '1.5rem',
+    }}>
+      <div style={{ width: '100%', maxWidth: '24rem' }}>
+        {/* Logo mark */}
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <span style={{ fontSize: '2.5rem' }}>🎭</span>
+          <h1 style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontSize: '1.5rem',
+            fontWeight: 700,
+            color: 'var(--brand-primary)',
+            margin: '0.5rem 0 0.25rem',
+          }}>Welcome Back</h1>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Sign in to your CostumeRent account</p>
+        </div>
 
+        <div className="card" style={{ padding: '2rem' }}>
           {error && (
-            <div className="mb-4 px-3 py-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-              {error}
+            <div style={{
+              marginBottom: '1.25rem',
+              padding: '0.75rem 1rem',
+              background: '#FFF0F0',
+              border: '1px solid #F5AABA',
+              borderRadius: '8px',
+              fontSize: '0.8125rem',
+              color: 'var(--error)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}>
+              <span>⚠️</span> {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.125rem' }}>
             <div>
-              <label htmlFor="email" className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+              <label htmlFor="email" className="form-label">Email address</label>
               <input
                 id="email"
                 type="email"
@@ -49,13 +78,13 @@ export default function LoginPage() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+                className="form-input"
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-xs font-medium text-gray-700 mb-1">Password</label>
+              <label htmlFor="password" className="form-label">Password</label>
               <input
                 id="password"
                 type="password"
@@ -63,7 +92,7 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+                className="form-input"
                 placeholder="••••••••"
               />
             </div>
@@ -72,15 +101,18 @@ export default function LoginPage() {
               id="login-submit-btn"
               type="submit"
               disabled={isLoading}
-              className="w-full bg-gray-900 text-white rounded-lg py-2 text-sm font-medium hover:bg-gray-700 transition-colors disabled:opacity-50"
+              className="btn-primary"
+              style={{ padding: '0.75rem', fontSize: '0.9375rem', marginTop: '0.25rem', width: '100%' }}
             >
-              {isLoading ? 'Signing in...' : 'Sign In'}
+              {isLoading ? 'Signing in…' : 'Sign In'}
             </button>
           </form>
 
-          <p className="mt-4 text-center text-sm text-gray-600">
+          <p style={{ marginTop: '1.25rem', textAlign: 'center', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
             Don&apos;t have an account?{' '}
-            <Link href="/register" className="text-gray-900 font-medium hover:underline">Register</Link>
+            <Link href="/register" style={{ color: 'var(--brand-primary)', fontWeight: 600, textDecoration: 'none' }}>
+              Create account
+            </Link>
           </p>
         </div>
       </div>

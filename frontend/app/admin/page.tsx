@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { rentalsApi, productsApi } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
+import Image from 'next/image';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface DashboardStats {
@@ -45,19 +46,19 @@ interface Product {
   imageUrl?: string | null;
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  PENDING: 'bg-yellow-50 text-yellow-700 border border-yellow-200',
-  APPROVED: 'bg-green-50 text-green-700 border border-green-200',
-  REJECTED: 'bg-red-50 text-red-700 border border-red-200',
-  RETURNED: 'bg-blue-50 text-blue-700 border border-blue-200',
-  CANCELLED: 'bg-gray-50 text-gray-500 border border-gray-200',
+const STATUS_BADGES: Record<string, { bg: string; color: string; border: string; label: string }> = {
+  PENDING: { bg: 'rgba(169, 101, 18, 0.1)', color: 'var(--warning)', border: 'rgba(169, 101, 18, 0.3)', label: 'Pending' },
+  APPROVED: { bg: 'rgba(22, 131, 74, 0.1)', color: 'var(--success)', border: 'rgba(22, 131, 74, 0.3)', label: 'Approved' },
+  REJECTED: { bg: 'rgba(192, 57, 75, 0.1)', color: 'var(--error)', border: 'rgba(192, 57, 75, 0.3)', label: 'Rejected' },
+  RETURNED: { bg: 'rgba(143, 18, 63, 0.08)', color: 'var(--brand-primary)', border: 'rgba(143, 18, 63, 0.25)', label: 'Returned' },
+  CANCELLED: { bg: '#F1F1F1', color: '#796570', border: '#DCD4D7', label: 'Cancelled' },
 };
 
-const DELIVERY_STATUS_STYLES: Record<string, { label: string; badge: string }> = {
-  PENDING_APPROVAL: { label: 'Awaiting Approval', badge: 'bg-amber-100 text-amber-800 border-amber-300' },
-  DELIVERY_APPROVED: { label: 'Delivery Approved', badge: 'bg-indigo-100 text-indigo-800 border-indigo-300' },
-  OUT_FOR_DELIVERY: { label: 'Out for Delivery', badge: 'bg-purple-100 text-purple-800 border-purple-300' },
-  DELIVERED: { label: 'Delivered', badge: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+const DELIVERY_STATUS_STYLES: Record<string, { label: string; bg: string; color: string; border: string; icon: string }> = {
+  PENDING_APPROVAL: { label: 'Awaiting Approval', bg: 'rgba(169, 101, 18, 0.1)', color: 'var(--warning)', border: 'rgba(169, 101, 18, 0.3)', icon: '⏳' },
+  DELIVERY_APPROVED: { label: 'Delivery Approved', bg: 'rgba(22, 131, 74, 0.1)', color: 'var(--success)', border: 'rgba(22, 131, 74, 0.3)', icon: '✓' },
+  OUT_FOR_DELIVERY: { label: 'Out for Delivery', bg: 'rgba(194, 24, 91, 0.1)', color: 'var(--brand-secondary)', border: 'rgba(194, 24, 91, 0.3)', icon: '🚚' },
+  DELIVERED: { label: 'Delivered', bg: 'rgba(22, 131, 74, 0.15)', color: 'var(--success)', border: 'rgba(22, 131, 74, 0.35)', icon: '🎉' },
 };
 
 function buildWhatsAppUrl(phone: string, text: string) {
@@ -80,30 +81,30 @@ function generateWhatsAppMessage(
 
   if (templateType === 'APPROVAL') {
     return (
-`🎭 *COSTUME RENTAL STORE*
+`✨ *DGS's CREATION — COSTUMERENT*
 *Order Approval Confirmation*
 
 Hello *${order.user.name}*,
 Great news! Your costume rental request *#${order.id}* has been *APPROVED*! ✅
 
-📋 *Order Summary:*
+📋 *Order Details:*
 • *Item:* ${order.product.name}
 • *Quantity:* ${order.quantity} unit(s)
 • *Rental Dates:* ${fmtStart} ➡️ ${fmtEnd}
-• *Delivery Method:* ${isHomeDel ? '🚚 Home Delivery (+₹50)' : '🏪 Store Pickup'}
-${order.deliveryAddress ? `• *Delivery Address:* ${order.deliveryAddress}\n` : ''}• *Total Price:* ₹${Number(order.totalPrice).toFixed(0)}
+• *Fulfillment:* ${isHomeDel ? '🚚 Home Delivery (+₹50)' : '🏪 Boutique Store Pickup'}
+${order.deliveryAddress ? `• *Delivery Address:* ${order.deliveryAddress}\n` : ''}• *Total Amount:* ₹${Number(order.totalPrice).toFixed(0)}
 
 ${isHomeDel 
   ? '🚚 *Home Delivery:* Your order is approved and our team is preparing it for doorstep dispatch.' 
-  : `🏪 *Store Pickup:* Your costume is reserved and ready for pickup at our store on ${fmtStart}.`}
+  : `🏪 *Store Pickup:* Your costume is reserved and ready for pickup at our boutique on ${fmtStart}.`}
 
-Thank you for choosing us! Please reply right here on WhatsApp if you have any questions. 💬`
+Thank you for choosing DGS's Creation! Reply directly here on WhatsApp if you need any adjustments. 💬`
     );
   }
 
   if (templateType === 'OUT_FOR_DELIVERY') {
     return (
-`🚚 *COSTUME DISPATCH UPDATE*
+`🚚 *DGS's CREATION — DISPATCH UPDATE*
 
 Hello *${order.user.name}*,
 Your costume rental order *#${order.id}* (*${order.product.name}*) is now *OUT FOR DELIVERY*! 📦
@@ -112,27 +113,27 @@ Your costume rental order *#${order.id}* (*${order.product.name}*) is now *OUT F
 📞 *Contact Phone:* ${order.contactPhone || 'N/A'}
 💰 *Total Amount:* ₹${Number(order.totalPrice).toFixed(0)}
 
-Our delivery partner will arrive shortly. Please keep your phone available! 💬`
+Our courier will arrive shortly. Please keep your phone reachable! 💬`
     );
   }
 
   if (templateType === 'DELIVERED') {
     return (
-`🎉 *COSTUME DELIVERED*
+`🎉 *DGS's CREATION — ORDER DELIVERED*
 
 Hello *${order.user.name}*,
 Your costume rental order *#${order.id}* (*${order.product.name}*) has been successfully *DELIVERED*! 📦
 
-Please check your costume and accessories.
+Please inspect your costume and matching accessories.
 Rental return date: *${fmtEnd}*.
 
-We hope you have a fantastic event! 🎭`
+We hope you have a spectacular event! 🎭✨`
     );
   }
 
   if (templateType === 'RETURN_REMINDER') {
     return (
-`⏰ *COSTUME RETURN REMINDER*
+`⏰ *DGS's CREATION — RETURN REMINDER*
 
 Hello *${order.user.name}*,
 Friendly reminder that your costume rental for *"${order.product.name}"* (Order *#${order.id}*) is scheduled for return on *${fmtEnd}*.
@@ -144,18 +145,39 @@ Please ensure the costume and accessories are packed and ready for return. Thank
   return '';
 }
 
-// ─── Sub-components ────────────────────────────────────────────────────────────
-
-function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+// ─── StatCard Component ────────────────────────────────────────────────────────
+function StatCard({ label, value, sub, gold }: { label: string; value: string | number; sub?: string; gold?: boolean }) {
   return (
-    <div className="border border-gray-200 rounded-lg bg-white p-5">
-      <p className="text-xs text-gray-500 mb-1">{label}</p>
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+    <div className="card" style={{
+      padding: '1.25rem',
+      border: gold ? '1px solid var(--brand-gold)' : '1px solid var(--border)',
+      background: gold ? 'linear-gradient(135deg, #FFFFFF 0%, #FFFDF9 100%)' : 'var(--surface)',
+    }}>
+      <p style={{
+        fontSize: '0.75rem',
+        color: 'var(--text-secondary)',
+        textTransform: 'uppercase',
+        letterSpacing: '0.05em',
+        marginBottom: '0.35rem',
+        fontWeight: 600,
+      }}>
+        {label}
+      </p>
+      <p style={{
+        fontFamily: "'Playfair Display', Georgia, serif",
+        fontSize: '1.75rem',
+        fontWeight: 700,
+        color: gold ? 'var(--brand-gold)' : 'var(--brand-primary)',
+        lineHeight: 1.2,
+      }}>
+        {value}
+      </p>
+      {sub && <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>{sub}</p>}
     </div>
   );
 }
 
+// ─── OrdersTab Component ───────────────────────────────────────────────────────
 function OrdersTab() {
   const [orders, setOrders] = useState<RentalOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -208,7 +230,6 @@ function OrdersTab() {
       await rentalsApi.updateStatus(id, status);
       setOrders((prev) => prev.map((o) => o.id === id ? { ...o, status } : o));
 
-      // 📱 Automatically trigger customizable WhatsApp redirect modal when approving!
       if (status === 'APPROVED') {
         const approvedOrder = orders.find((o) => o.id === id);
         if (approvedOrder) {
@@ -230,7 +251,6 @@ function OrdersTab() {
         prev.map((o) => (o.id === id ? { ...o, deliveryStatus: deliveryStatus as any } : o))
       );
 
-      // If marked Out for Delivery or Delivered, open WhatsApp prompt with appropriate template
       if (deliveryStatus === 'OUT_FOR_DELIVERY' || deliveryStatus === 'DELIVERED') {
         const orderToMsg = orders.find((o) => o.id === id);
         if (orderToMsg) {
@@ -259,14 +279,26 @@ function OrdersTab() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-3 mb-5">
+      {/* Filters Bar */}
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: '1rem',
+        marginBottom: '1.5rem',
+        background: 'var(--surface)',
+        padding: '1rem 1.25rem',
+        borderRadius: 'var(--radius-card)',
+        border: '1px solid var(--border)',
+      }}>
         <div>
-          <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Rental Status</label>
+          <label className="form-label" style={{ marginBottom: '0.35rem' }}>Rental Status</label>
           <select
             id="status-filter"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-gray-400"
+            className="form-input"
+            style={{ width: 'auto', minWidth: '160px', padding: '0.45rem 0.75rem' }}
           >
             <option value="">All Rental Statuses</option>
             {['PENDING', 'APPROVED', 'REJECTED', 'RETURNED', 'CANCELLED'].map((s) => (
@@ -276,273 +308,462 @@ function OrdersTab() {
         </div>
 
         <div>
-          <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Delivery Filter</label>
+          <label className="form-label" style={{ marginBottom: '0.35rem' }}>Fulfillment Method</label>
           <select
             id="delivery-filter"
             value={deliveryFilter}
             onChange={(e) => setDeliveryFilter(e.target.value)}
-            className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-gray-400 font-medium text-gray-800"
+            className="form-input"
+            style={{ width: 'auto', minWidth: '190px', padding: '0.45rem 0.75rem' }}
           >
-            <option value="">All Delivery Modes</option>
+            <option value="">All Fulfillment Modes</option>
             <option value="NEEDS_APPROVAL">⏳ Needs Delivery Approval</option>
             <option value="HOME_DELIVERY">🚚 Home Delivery (All)</option>
             <option value="PICKUP">🏪 Store Pickup</option>
           </select>
         </div>
 
-        <div className="ml-auto self-end text-sm text-gray-500">
-          Showing <span className="font-semibold text-gray-900">{filteredOrders.length}</span> of {orders.length} order(s)
+        <div style={{ marginLeft: 'auto', alignSelf: 'flex-end', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+          Showing <strong style={{ color: 'var(--brand-primary)' }}>{filteredOrders.length}</strong> of {orders.length} order(s)
         </div>
       </div>
 
       {isLoading ? (
-        <p className="text-gray-500 text-sm">Loading orders...</p>
+        <div style={{ padding: '3rem 1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+          <div className="skeleton" style={{ height: '220px', borderRadius: 'var(--radius-card)' }} />
+        </div>
       ) : filteredOrders.length === 0 ? (
-        <p className="text-gray-500 text-sm py-12 text-center bg-gray-50 rounded-lg border border-dashed border-gray-200">
-          No orders match the selected filters.
-        </p>
+        <div className="card" style={{ padding: '3.5rem 1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+          <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '0.75rem' }}>📋</span>
+          <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+            No orders match the selected filters
+          </p>
+          <p style={{ fontSize: '0.8125rem' }}>Try choosing another status or reset filters.</p>
+        </div>
       ) : (
-        <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-gray-50 text-[11px] text-gray-500 uppercase border-b border-gray-200">
-              <tr>
-                <th className="px-3.5 py-3">Order</th>
-                <th className="px-3.5 py-3">Customer</th>
-                <th className="px-3.5 py-3">Product & Dates</th>
-                <th className="px-3.5 py-3">Delivery Method & Details</th>
-                <th className="px-3.5 py-3">Total</th>
-                <th className="px-3.5 py-3">Rental Order</th>
-                <th className="px-3.5 py-3">Delivery Approval & Flow</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 bg-white">
-              {filteredOrders.map((order) => {
-                const isHomeDel = order.deliveryOption === 'HOME_DELIVERY';
-                const delInfo = order.deliveryStatus ? DELIVERY_STATUS_STYLES[order.deliveryStatus] : null;
+        <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8125rem' }}>
+              <thead>
+                <tr style={{
+                  background: 'var(--surface-muted)',
+                  borderBottom: '1px solid var(--border)',
+                  color: 'var(--text-secondary)',
+                  textTransform: 'uppercase',
+                  fontSize: '0.6875rem',
+                  letterSpacing: '0.06em',
+                }}>
+                  <th style={{ padding: '0.875rem 1rem' }}>Order</th>
+                  <th style={{ padding: '0.875rem 1rem' }}>Client</th>
+                  <th style={{ padding: '0.875rem 1rem' }}>Costume & Dates</th>
+                  <th style={{ padding: '0.875rem 1rem' }}>Fulfillment</th>
+                  <th style={{ padding: '0.875rem 1rem' }}>Amount</th>
+                  <th style={{ padding: '0.875rem 1rem' }}>Status & Review</th>
+                  <th style={{ padding: '0.875rem 1rem' }}>Dispatch Flow</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredOrders.map((order) => {
+                  const isHomeDel = order.deliveryOption === 'HOME_DELIVERY';
+                  const delInfo = order.deliveryStatus ? DELIVERY_STATUS_STYLES[order.deliveryStatus] : null;
+                  const stat = STATUS_BADGES[order.status] || STATUS_BADGES.PENDING;
 
-                return (
-                  <tr key={order.id} className="hover:bg-slate-50/80 transition-colors">
-                    {/* Order ID */}
-                    <td className="px-3.5 py-3 text-gray-400 text-xs font-mono font-medium">
-                      #{order.id}
-                      <div className="text-[10px] text-gray-400">{fmt(order.createdAt)}</div>
-                    </td>
-
-                    {/* Customer */}
-                    <td className="px-3.5 py-3">
-                      <div className="font-semibold text-gray-900">{order.user.name}</div>
-                      <div className="text-xs text-gray-500">{order.user.email}</div>
-                    </td>
-
-                    {/* Product & Dates */}
-                    <td className="px-3.5 py-3">
-                      <div className="font-medium text-gray-800">{order.product.name}</div>
-                      <div className="text-xs text-gray-500 whitespace-nowrap">
-                        {fmt(order.startDate)} → {fmt(order.endDate)}
-                      </div>
-                      <div className="text-[11px] text-gray-400">Qty: {order.quantity}</div>
-                      {order.notes && (
-                        <div className="text-[11px] text-gray-500 italic max-w-xs truncate" title={order.notes}>
-                          "{order.notes}"
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Delivery Method & Details */}
-                    <td className="px-3.5 py-3 max-w-xs">
-                      {isHomeDel ? (
-                        <div className="space-y-1">
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
-                            <span>🚚</span> Home Delivery (+₹50)
-                          </span>
-                          {order.deliveryAddress && (
-                            <div className="text-xs text-gray-700 font-medium leading-snug">
-                              📍 {order.deliveryAddress}
-                            </div>
-                          )}
-                          {order.contactPhone && (
-                            <div className="text-xs text-gray-500">
-                              📞 {order.contactPhone}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-600 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
-                          <span>🏪</span> Store Pickup
+                  return (
+                    <tr
+                      key={order.id}
+                      style={{
+                        borderBottom: '1px solid var(--border)',
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface-muted)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    >
+                      {/* Order ID */}
+                      <td style={{ padding: '0.875rem 1rem', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--brand-primary)', fontFamily: 'monospace' }}>
+                          #{order.id}
                         </span>
-                      )}
-                    </td>
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                          {fmt(order.createdAt)}
+                        </div>
+                      </td>
 
-                    {/* Total Price */}
-                    <td className="px-3.5 py-3 whitespace-nowrap font-bold text-gray-900">
-                      ₹{Number(order.totalPrice).toFixed(0)}
-                    </td>
+                      {/* Customer */}
+                      <td style={{ padding: '0.875rem 1rem', verticalAlign: 'top' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{order.user.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{order.user.email}</div>
+                      </td>
 
-                    {/* Rental Order Status & Action */}
-                    <td className="px-3.5 py-3">
-                      <div className="space-y-1.5">
-                        <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded ${STATUS_STYLES[order.status] || ''}`}>
-                          {order.status}
-                        </span>
-                        {order.status === 'PENDING' && (
-                          <div className="flex gap-1.5">
-                            <button
-                              onClick={() => updateStatus(order.id, 'APPROVED')}
-                              disabled={updatingId === order.id}
-                              className="text-xs px-2 py-1 bg-emerald-600 text-white rounded font-medium hover:bg-emerald-700 disabled:opacity-50"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => updateStatus(order.id, 'REJECTED')}
-                              disabled={updatingId === order.id}
-                              className="text-xs px-2 py-1 bg-rose-600 text-white rounded font-medium hover:bg-rose-700 disabled:opacity-50"
-                            >
-                              Reject
-                            </button>
+                      {/* Product & Dates */}
+                      <td style={{ padding: '0.875rem 1rem', verticalAlign: 'top', maxWidth: '240px' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{order.product.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--brand-gold)', fontWeight: 600, marginTop: '0.15rem' }}>
+                          {fmt(order.startDate)} ➔ {fmt(order.endDate)}
+                        </div>
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>Quantity: {order.quantity}</div>
+                        {order.notes && (
+                          <div style={{
+                            fontSize: '0.6875rem',
+                            fontStyle: 'italic',
+                            color: 'var(--text-secondary)',
+                            background: 'var(--brand-ivory)',
+                            padding: '0.25rem 0.5rem',
+                            borderRadius: '4px',
+                            marginTop: '0.35rem',
+                          }}>
+                            &ldquo;{order.notes}&rdquo;
                           </div>
                         )}
-                        {order.status === 'APPROVED' && (
-                          <button
-                            onClick={() => updateStatus(order.id, 'RETURNED')}
-                            disabled={updatingId === order.id}
-                            className="text-xs px-2 py-1 bg-blue-600 text-white rounded font-medium hover:bg-blue-700 disabled:opacity-50"
-                          >
-                            Mark Returned
-                          </button>
+                      </td>
+
+                      {/* Fulfillment */}
+                      <td style={{ padding: '0.875rem 1rem', verticalAlign: 'top', maxWidth: '220px' }}>
+                        {isHomeDel ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              fontSize: '0.6875rem',
+                              fontWeight: 700,
+                              color: 'var(--brand-secondary)',
+                              background: 'rgba(194, 24, 91, 0.08)',
+                              padding: '0.2rem 0.5rem',
+                              borderRadius: '9999px',
+                              width: 'fit-content',
+                            }}>
+                              🚚 Home Delivery (+₹50)
+                            </span>
+                            {order.deliveryAddress && (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-primary)', lineHeight: 1.3 }}>
+                                📍 {order.deliveryAddress}
+                              </div>
+                            )}
+                            {order.contactPhone && (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                                📞 {order.contactPhone}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            fontSize: '0.6875rem',
+                            fontWeight: 600,
+                            color: 'var(--text-secondary)',
+                            background: 'var(--surface-muted)',
+                            padding: '0.2rem 0.5rem',
+                            borderRadius: '9999px',
+                          }}>
+                            🏪 Boutique Pickup
+                          </span>
                         )}
-                        <div>
+                      </td>
+
+                      {/* Total Price */}
+                      <td style={{ padding: '0.875rem 1rem', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
+                        <div style={{
+                          fontFamily: "'Playfair Display', Georgia, serif",
+                          fontSize: '1.05rem',
+                          fontWeight: 700,
+                          color: 'var(--brand-primary)',
+                        }}>
+                          ₹{Number(order.totalPrice).toFixed(0)}
+                        </div>
+                      </td>
+
+                      {/* Rental Order Status & Review Actions */}
+                      <td style={{ padding: '0.875rem 1rem', verticalAlign: 'top' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            fontSize: '0.6875rem',
+                            fontWeight: 700,
+                            padding: '0.2rem 0.5rem',
+                            borderRadius: '4px',
+                            background: stat.bg,
+                            color: stat.color,
+                            border: `1px solid ${stat.border}`,
+                            width: 'fit-content',
+                          }}>
+                            {stat.label}
+                          </span>
+
+                          {order.status === 'PENDING' && (
+                            <div style={{ display: 'flex', gap: '0.35rem' }}>
+                              <button
+                                onClick={() => updateStatus(order.id, 'APPROVED')}
+                                disabled={updatingId === order.id}
+                                style={{
+                                  fontSize: '0.6875rem',
+                                  padding: '0.25rem 0.5rem',
+                                  background: 'var(--success)',
+                                  color: '#FFF',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => updateStatus(order.id, 'REJECTED')}
+                                disabled={updatingId === order.id}
+                                style={{
+                                  fontSize: '0.6875rem',
+                                  padding: '0.25rem 0.5rem',
+                                  background: 'var(--error)',
+                                  color: '#FFF',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
+
+                          {order.status === 'APPROVED' && (
+                            <button
+                              onClick={() => updateStatus(order.id, 'RETURNED')}
+                              disabled={updatingId === order.id}
+                              style={{
+                                fontSize: '0.6875rem',
+                                padding: '0.25rem 0.5rem',
+                                background: 'var(--brand-primary)',
+                                color: '#FFF',
+                                border: 'none',
+                                borderRadius: '4px',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                width: 'fit-content',
+                              }}
+                            >
+                              Mark Returned
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             onClick={() => handleOpenWhatsApp(order, 'APPROVAL')}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded transition shadow-2xs"
-                            title="Open customizable WhatsApp notification"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              fontSize: '0.6875rem',
+                              fontWeight: 600,
+                              color: 'var(--success)',
+                              background: 'rgba(22, 131, 74, 0.08)',
+                              border: '1px solid rgba(22, 131, 74, 0.25)',
+                              padding: '0.2rem 0.45rem',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              width: 'fit-content',
+                            }}
                           >
                             <span>💬</span> WhatsApp
                           </button>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Delivery Approval & Flow */}
-                    <td className="px-3.5 py-3 min-w-[210px]">
-                      {isHomeDel ? (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-1.5">
+                      {/* Dispatch Flow */}
+                      <td style={{ padding: '0.875rem 1rem', verticalAlign: 'top', minWidth: '190px' }}>
+                        {isHomeDel ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             {delInfo && (
-                              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded border ${delInfo.badge}`}>
-                                {delInfo.label}
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                fontSize: '0.6875rem',
+                                fontWeight: 700,
+                                padding: '0.2rem 0.5rem',
+                                borderRadius: '4px',
+                                background: delInfo.bg,
+                                color: delInfo.color,
+                                border: `1px solid ${delInfo.border}`,
+                                width: 'fit-content',
+                              }}>
+                                <span>{delInfo.icon}</span> {delInfo.label}
                               </span>
                             )}
-                          </div>
 
-                          {/* Quick delivery approval buttons */}
-                          <div className="flex flex-wrap gap-1">
                             {order.deliveryStatus === 'PENDING_APPROVAL' && (
                               <button
                                 onClick={() => updateDeliveryStatus(order.id, 'DELIVERY_APPROVED')}
                                 disabled={updatingDeliveryId === order.id}
-                                className="text-xs px-2.5 py-1 bg-indigo-600 text-white rounded font-semibold hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1 shadow-sm"
+                                className="btn-primary"
+                                style={{
+                                  fontSize: '0.6875rem',
+                                  padding: '0.35rem 0.6rem',
+                                  width: 'fit-content',
+                                }}
                               >
-                                <span>✓</span> Approve Delivery
+                                ✓ Approve Delivery
                               </button>
                             )}
+
                             {order.deliveryStatus === 'DELIVERY_APPROVED' && (
                               <button
                                 onClick={() => updateDeliveryStatus(order.id, 'OUT_FOR_DELIVERY')}
                                 disabled={updatingDeliveryId === order.id}
-                                className="text-xs px-2.5 py-1 bg-purple-600 text-white rounded font-semibold hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1 shadow-sm"
+                                style={{
+                                  fontSize: '0.6875rem',
+                                  padding: '0.35rem 0.6rem',
+                                  background: 'var(--brand-secondary)',
+                                  color: '#FFF',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  width: 'fit-content',
+                                }}
                               >
-                                <span>🚚</span> Dispatch / Out for Delivery
+                                🚚 Dispatch / Out for Delivery
                               </button>
                             )}
+
                             {order.deliveryStatus === 'OUT_FOR_DELIVERY' && (
                               <button
                                 onClick={() => updateDeliveryStatus(order.id, 'DELIVERED')}
                                 disabled={updatingDeliveryId === order.id}
-                                className="text-xs px-2.5 py-1 bg-emerald-600 text-white rounded font-semibold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1 shadow-sm"
+                                style={{
+                                  fontSize: '0.6875rem',
+                                  padding: '0.35rem 0.6rem',
+                                  background: 'var(--success)',
+                                  color: '#FFF',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  width: 'fit-content',
+                                }}
                               >
-                                <span>📦</span> Mark Delivered
+                                📦 Mark Delivered
                               </button>
                             )}
-                          </div>
 
-                          {/* Dropdown for manual override */}
-                          <div className="flex items-center gap-1 pt-0.5">
-                            <span className="text-[10px] text-gray-400">Set:</span>
-                            <select
-                              value={order.deliveryStatus || 'PENDING_APPROVAL'}
-                              onChange={(e) => updateDeliveryStatus(order.id, e.target.value)}
-                              disabled={updatingDeliveryId === order.id}
-                              className="text-[11px] border border-gray-300 rounded px-1.5 py-0.5 bg-white text-gray-700 focus:outline-none"
-                            >
-                              <option value="PENDING_APPROVAL">Pending Approval</option>
-                              <option value="DELIVERY_APPROVED">Approved</option>
-                              <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
-                              <option value="DELIVERED">Delivered</option>
-                            </select>
+                            {/* Status Override */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.25rem' }}>
+                              <span style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>Set:</span>
+                              <select
+                                value={order.deliveryStatus || 'PENDING_APPROVAL'}
+                                onChange={(e) => updateDeliveryStatus(order.id, e.target.value)}
+                                disabled={updatingDeliveryId === order.id}
+                                style={{
+                                  fontSize: '0.6875rem',
+                                  border: '1px solid var(--border)',
+                                  borderRadius: '4px',
+                                  padding: '0.15rem 0.35rem',
+                                  background: 'var(--surface)',
+                                }}
+                              >
+                                <option value="PENDING_APPROVAL">Pending Approval</option>
+                                <option value="DELIVERY_APPROVED">Approved</option>
+                                <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
+                                <option value="DELIVERED">Delivered</option>
+                              </select>
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-400 italic">Self pickup at store</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                        ) : (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                            Customer self pickup
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
       {/* ─── WhatsApp Customization & Redirect Modal ─── */}
       {waOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-gray-200">
-            {/* Modal Header */}
-            <div className="bg-emerald-600 px-5 py-4 text-white flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <span className="text-2xl">💬</span>
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 60,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1rem',
+          background: 'rgba(36,21,29,0.6)',
+          backdropFilter: 'blur(4px)',
+        }}>
+          <div className="card" style={{
+            maxWidth: '32rem',
+            width: '100%',
+            padding: 0,
+            overflow: 'hidden',
+            border: '1px solid var(--brand-gold)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+          }}>
+            {/* Header */}
+            <div style={{
+              background: 'var(--gradient-dashboard)',
+              padding: '1.25rem 1.5rem',
+              color: '#FFF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>💬</span>
                 <div>
-                  <h3 className="text-base font-bold leading-tight">Send WhatsApp Message</h3>
-                  <p className="text-xs text-emerald-100">Order #{waOrder.id} · {waOrder.user.name}</p>
+                  <h3 style={{
+                    fontFamily: "'Playfair Display', Georgia, serif",
+                    fontSize: '1.15rem',
+                    fontWeight: 700,
+                    margin: 0,
+                  }}>
+                    WhatsApp Notification
+                  </h3>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--brand-gold)', margin: 0 }}>
+                    Order #{waOrder.id} · {waOrder.user.name}
+                  </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setWaOrder(null)}
-                className="text-white/80 hover:text-white text-xl font-bold p-1 leading-none"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#FFF',
+                  fontSize: '1.25rem',
+                  cursor: 'pointer',
+                  opacity: 0.8,
+                }}
               >
                 ✕
               </button>
             </div>
 
-            <div className="p-5 space-y-4 text-sm">
-              {/* Phone Input */}
+            <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Recipient WhatsApp / Mobile Number
-                </label>
+                <label className="form-label">Client Mobile / WhatsApp Number</label>
                 <input
                   type="tel"
                   value={waPhone}
                   onChange={(e) => setWaPhone(e.target.value)}
                   placeholder="e.g. 9876543210 (with or without 91)"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                  className="form-input"
+                  style={{ fontFamily: 'monospace' }}
                 />
-                {!waPhone && (
-                  <p className="text-[11px] text-amber-600 mt-1">
-                    ℹ️ Customer did not provide a phone number on booking. Enter their mobile number above to open their chat directly, or open WhatsApp to choose from your chats.
-                  </p>
-                )}
               </div>
 
-              {/* Template Switcher */}
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  Message Template
-                </label>
-                <div className="flex flex-wrap gap-1.5">
+                <label className="form-label" style={{ marginBottom: '0.4rem' }}>Message Template</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                   {(
                     [
                       { key: 'APPROVAL', label: '✅ Order Approved' },
@@ -555,11 +776,16 @@ function OrdersTab() {
                       key={t.key}
                       type="button"
                       onClick={() => handleTemplateChange(t.key)}
-                      className={`text-xs px-2.5 py-1 rounded-md font-medium transition ${
-                        waTemplate === t.key
-                          ? 'bg-emerald-600 text-white shadow-xs'
-                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200'
-                      }`}
+                      style={{
+                        padding: '0.35rem 0.65rem',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        borderRadius: '6px',
+                        border: waTemplate === t.key ? '1px solid var(--brand-primary)' : '1px solid var(--border)',
+                        background: waTemplate === t.key ? 'var(--surface-muted)' : 'var(--surface)',
+                        color: waTemplate === t.key ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                      }}
                     >
                       {t.label}
                     </button>
@@ -567,35 +793,19 @@ function OrdersTab() {
                 </div>
               </div>
 
-              {/* Message Preview & Editor */}
               <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-xs font-semibold text-gray-700">
-                    Customizable Message Text
-                  </label>
-                  <span className="text-[11px] text-gray-400">Pre-filled with order details</span>
-                </div>
+                <label className="form-label">Preview & Edit Message</label>
                 <textarea
                   value={waMessage}
                   onChange={(e) => setWaMessage(e.target.value)}
-                  rows={8}
-                  className="w-full border border-gray-300 rounded-lg p-2.5 text-xs text-gray-800 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono leading-relaxed resize-none"
+                  rows={7}
+                  className="form-input"
+                  style={{ fontFamily: 'monospace', fontSize: '0.8125rem', lineHeight: 1.4 }}
                 />
               </div>
 
               {/* Action Buttons */}
-              <div className="pt-2 flex flex-col sm:flex-row gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const url = buildWhatsAppUrl(waPhone, waMessage);
-                    window.open(url, '_blank', 'noopener,noreferrer');
-                  }}
-                  className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-sm shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <span>🚀</span> Open WhatsApp Web / App
-                </button>
-
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
                 <button
                   type="button"
                   onClick={() => {
@@ -603,18 +813,32 @@ function OrdersTab() {
                     setWaCopied(true);
                     setTimeout(() => setWaCopied(false), 2000);
                   }}
-                  className="py-2.5 px-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium text-xs border border-gray-300 transition shrink-0 cursor-pointer"
+                  className="btn-secondary"
+                  style={{ flex: 1, padding: '0.625rem' }}
                 >
                   {waCopied ? '✓ Copied!' : '📋 Copy Text'}
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => setWaOrder(null)}
-                  className="py-2.5 px-3 text-gray-500 hover:text-gray-800 text-xs font-medium cursor-pointer"
+                <a
+                  href={buildWhatsAppUrl(waPhone, waMessage)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-primary"
+                  style={{
+                    flex: 1.5,
+                    padding: '0.625rem',
+                    textAlign: 'center',
+                    background: 'var(--success)',
+                    color: '#FFF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    textDecoration: 'none',
+                  }}
                 >
-                  Close
-                </button>
+                  <span>💬 Open WhatsApp</span>
+                </a>
               </div>
             </div>
           </div>
@@ -624,6 +848,7 @@ function OrdersTab() {
   );
 }
 
+// ─── ProductForm Modal ─────────────────────────────────────────────────────────
 function ProductForm({ product, onSave, onCancel }: {
   product?: Product | null;
   onSave: () => void;
@@ -674,97 +899,180 @@ function ProductForm({ product, onSave, onCancel }: {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg w-full max-w-md p-6 max-h-screen overflow-y-auto">
-        <div className="flex justify-between items-center mb-5">
-          <h2 className="text-base font-semibold text-gray-900">{product ? 'Edit Product' : 'Add Product'}</h2>
-          <button onClick={onCancel} className="text-gray-400 hover:text-gray-600">✕</button>
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      zIndex: 60,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '1rem',
+      background: 'rgba(36,21,29,0.6)',
+      backdropFilter: 'blur(4px)',
+    }}>
+      <div className="card" style={{
+        maxWidth: '30rem',
+        width: '100%',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+        padding: '1.75rem',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <h2 style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontSize: '1.25rem',
+            fontWeight: 700,
+            color: 'var(--brand-primary)',
+            margin: 0,
+          }}>
+            {product ? 'Edit Boutique Outfit' : 'Add New Costume'}
+          </h2>
+          <button
+            onClick={onCancel}
+            style={{ background: 'none', border: 'none', fontSize: '1.25rem', color: 'var(--text-secondary)', cursor: 'pointer' }}
+          >
+            ✕
+          </button>
         </div>
 
-        {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">{error}</div>}
+        {error && (
+          <div style={{
+            marginBottom: '1rem',
+            padding: '0.625rem 0.875rem',
+            background: '#FFF0F0',
+            border: '1px solid #F5AABA',
+            borderRadius: '6px',
+            color: 'var(--error)',
+            fontSize: '0.8125rem',
+          }}>
+            ⚠️ {error}
+          </div>
+        )}
 
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Name *</label>
-            <input required value={name} onChange={(e) => setName(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-gray-500" />
+            <label className="form-label">Costume Name *</label>
+            <input
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="form-input"
+              placeholder="e.g. Royal Victorian Ball Gown"
+            />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)}
-              rows={2} className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-gray-500 resize-none" />
+            <label className="form-label">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              className="form-input"
+              placeholder="Fabric details, accessories included, fit details..."
+              style={{ resize: 'none' }}
+            />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Type</label>
-              <select value={type} onChange={(e) => setType(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none">
-                <option value="RENT">RENT</option>
-                <option value="SALE">SALE</option>
-                <option value="BOTH">BOTH</option>
+              <label className="form-label">Listing Type</label>
+              <select value={type} onChange={(e) => setType(e.target.value)} className="form-input">
+                <option value="RENT">RENT ONLY</option>
+                <option value="SALE">SALE ONLY</option>
+                <option value="BOTH">RENT OR SALE</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
-              <input value={category} onChange={(e) => setCategory(e.target.value)}
-                placeholder="e.g. Halloween"
-                className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-gray-500" />
+              <label className="form-label">Category</label>
+              <input
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder="e.g. Historical, Bridal"
+                className="form-input"
+              />
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Rental Price (₹/day)</label>
-              <input type="number" step="0.01" min="0" value={rentalPrice} onChange={(e) => setRentalPrice(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-gray-500" />
+              <label className="form-label">Rental (₹/day)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={rentalPrice}
+                onChange={(e) => setRentalPrice(e.target.value)}
+                className="form-input"
+              />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Sale Price (₹)</label>
-              <input type="number" step="0.01" min="0" value={salePrice} onChange={(e) => setSalePrice(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-gray-500" />
+              <label className="form-label">Sale Price (₹)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={salePrice}
+                onChange={(e) => setSalePrice(e.target.value)}
+                className="form-input"
+              />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Stock</label>
-              <input type="number" min="1" required value={totalStock} onChange={(e) => setTotalStock(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-gray-500" />
+              <label className="form-label">Total Stock *</label>
+              <input
+                type="number"
+                min="1"
+                required
+                value={totalStock}
+                onChange={(e) => setTotalStock(e.target.value)}
+                className="form-input"
+              />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Image Upload (via Cloudinary)</label>
+            <label className="form-label">Upload Costume Photo</label>
             <input
               id="product-image-input"
               type="file"
               accept="image/*"
               onChange={(e) => setImage(e.target.files?.[0] || null)}
-              className="w-full text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-gray-100 file:text-gray-700"
+              className="form-input"
+              style={{ padding: '0.4rem' }}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Or Direct Image URL</label>
+            <label className="form-label">Or Direct Image URL</label>
             <input
               type="url"
-              placeholder="https://images.unsplash.com/... or any image link"
+              placeholder="https://images.unsplash.com/..."
               value={imageUrlInput}
               onChange={(e) => setImageUrlInput(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-gray-500"
+              className="form-input"
             />
             {product?.imageUrl && !image && (
-              <p className="text-xs text-gray-400 mt-1">Current image: {product.imageUrl.slice(0, 45)}...</p>
+              <p style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                Current image: {product.imageUrl.slice(0, 45)}…
+              </p>
             )}
           </div>
 
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onCancel}
-              className="flex-1 border border-gray-300 rounded py-2 text-sm hover:bg-gray-50 transition-colors">
+          <div style={{ display: 'flex', gap: '0.75rem', paddingTop: '0.5rem' }}>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="btn-secondary"
+              style={{ flex: 1, padding: '0.625rem' }}
+            >
               Cancel
             </button>
-            <button type="submit" disabled={isSubmitting}
-              className="flex-1 bg-gray-900 text-white rounded py-2 text-sm hover:bg-gray-700 transition-colors disabled:opacity-50">
-              {isSubmitting ? 'Saving...' : 'Save Product'}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="btn-primary"
+              style={{ flex: 1, padding: '0.625rem' }}
+            >
+              {isSubmitting ? 'Saving…' : 'Save Costume'}
             </button>
           </div>
         </form>
@@ -773,6 +1081,7 @@ function ProductForm({ product, onSave, onCancel }: {
   );
 }
 
+// ─── CatalogTab Component ──────────────────────────────────────────────────────
 function CatalogTab() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -791,7 +1100,7 @@ function CatalogTab() {
   useEffect(() => { fetchProducts(); }, []);
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Deactivate this product?')) return;
+    if (!confirm('Deactivate this costume from catalog?')) return;
     try {
       await productsApi.delete(id);
       setProducts((prev) => prev.map((p) => p.id === id ? { ...p, isActive: false } : p));
@@ -808,75 +1117,127 @@ function CatalogTab() {
         />
       )}
 
-      <div className="flex justify-between items-center mb-4">
-        <span className="text-sm text-gray-500">{products.length} product(s) total</span>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: '1.25rem',
+      }}>
+        <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+          {products.length} catalog item(s) total
+        </span>
         <button
           id="add-product-btn"
           onClick={() => { setEditProduct(null); setShowForm(true); }}
-          className="px-3 py-1.5 bg-gray-900 text-white rounded text-sm hover:bg-gray-700 transition-colors"
+          className="btn-primary"
+          style={{ padding: '0.5rem 1rem' }}
         >
-          + Add Product
+          ✨ + Add Costume
         </button>
       </div>
 
       {isLoading ? (
-        <p className="text-gray-500 text-sm">Loading products...</p>
+        <div style={{ padding: '3rem 1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+          <div className="skeleton" style={{ height: '220px', borderRadius: 'var(--radius-card)' }} />
+        </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left border border-gray-200 rounded-lg overflow-hidden">
-            <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
-              <tr>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Type</th>
-                <th className="px-4 py-3">Category</th>
-                <th className="px-4 py-3">Rental ₹</th>
-                <th className="px-4 py-3">Stock</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {products.map((p) => (
-                <tr key={p.id} className="bg-white hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{p.name}</td>
-                  <td className="px-4 py-3 text-gray-600">{p.type}</td>
-                  <td className="px-4 py-3 text-gray-600">{p.category || '—'}</td>
-                  <td className="px-4 py-3">{p.rentalPrice ? `₹${Number(p.rentalPrice).toFixed(0)}` : '—'}</td>
-                  <td className="px-4 py-3">{p.totalStock}</td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${p.isActive ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-500'}`}>
-                      {p.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => { setEditProduct(p); setShowForm(true); }}
-                        className="text-xs px-2 py-1 border border-gray-300 rounded hover:bg-gray-50"
-                      >
-                        Edit
-                      </button>
-                      {p.isActive && (
-                        <button
-                          onClick={() => handleDelete(p.id)}
-                          className="text-xs px-2 py-1 border border-red-200 text-red-600 rounded hover:bg-red-50"
-                        >
-                          Deactivate
-                        </button>
-                      )}
-                    </div>
-                  </td>
+        <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8125rem' }}>
+              <thead>
+                <tr style={{
+                  background: 'var(--surface-muted)',
+                  borderBottom: '1px solid var(--border)',
+                  color: 'var(--text-secondary)',
+                  textTransform: 'uppercase',
+                  fontSize: '0.6875rem',
+                  letterSpacing: '0.06em',
+                }}>
+                  <th style={{ padding: '0.875rem 1rem' }}>Costume</th>
+                  <th style={{ padding: '0.875rem 1rem' }}>Type</th>
+                  <th style={{ padding: '0.875rem 1rem' }}>Category</th>
+                  <th style={{ padding: '0.875rem 1rem' }}>Rental ₹</th>
+                  <th style={{ padding: '0.875rem 1rem' }}>Sale ₹</th>
+                  <th style={{ padding: '0.875rem 1rem' }}>Stock</th>
+                  <th style={{ padding: '0.875rem 1rem' }}>Status</th>
+                  <th style={{ padding: '0.875rem 1rem' }}>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {products.map((p) => (
+                  <tr
+                    key={p.id}
+                    style={{
+                      borderBottom: '1px solid var(--border)',
+                      transition: 'background 0.15s',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface-muted)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
+                    <td style={{ padding: '0.875rem 1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {p.name}
+                    </td>
+                    <td style={{ padding: '0.875rem 1rem', color: 'var(--text-secondary)' }}>{p.type}</td>
+                    <td style={{ padding: '0.875rem 1rem', color: 'var(--brand-gold)', fontWeight: 600 }}>{p.category || '—'}</td>
+                    <td style={{ padding: '0.875rem 1rem', fontWeight: 700, color: 'var(--brand-primary)' }}>
+                      {p.rentalPrice ? `₹${Number(p.rentalPrice).toFixed(0)}` : '—'}
+                    </td>
+                    <td style={{ padding: '0.875rem 1rem', color: 'var(--text-primary)' }}>
+                      {p.salePrice ? `₹${Number(p.salePrice).toFixed(0)}` : '—'}
+                    </td>
+                    <td style={{ padding: '0.875rem 1rem', fontWeight: 600 }}>{p.totalStock}</td>
+                    <td style={{ padding: '0.875rem 1rem' }}>
+                      <span style={{
+                        fontSize: '0.6875rem',
+                        fontWeight: 700,
+                        padding: '0.2rem 0.5rem',
+                        borderRadius: '4px',
+                        background: p.isActive ? 'rgba(22, 131, 74, 0.1)' : '#F1F1F1',
+                        color: p.isActive ? 'var(--success)' : '#796570',
+                        border: `1px solid ${p.isActive ? 'rgba(22, 131, 74, 0.3)' : '#DCD4D7'}`,
+                      }}>
+                        {p.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.875rem 1rem' }}>
+                      <div style={{ display: 'flex', gap: '0.35rem' }}>
+                        <button
+                          onClick={() => { setEditProduct(p); setShowForm(true); }}
+                          className="btn-secondary"
+                          style={{ fontSize: '0.6875rem', padding: '0.25rem 0.5rem' }}
+                        >
+                          Edit
+                        </button>
+                        {p.isActive && (
+                          <button
+                            onClick={() => handleDelete(p.id)}
+                            style={{
+                              fontSize: '0.6875rem',
+                              padding: '0.25rem 0.5rem',
+                              background: 'none',
+                              border: '1px solid var(--error)',
+                              color: 'var(--error)',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Deactivate
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-// ─── Main Admin Page ────────────────────────────────────────────────────────────
+// ─── Main Admin Page ───────────────────────────────────────────────────────────
 export default function AdminPage() {
   const { user, isAdmin, isLoading: authLoading } = useAuth();
   const router = useRouter();
@@ -896,37 +1257,113 @@ export default function AdminPage() {
   if (authLoading || !isAdmin) return null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Admin Dashboard</h1>
+    <div style={{ maxWidth: '80rem', margin: '0 auto', padding: '2rem 1.25rem 4rem' }}>
+      {/* Admin Title Bar */}
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '1rem',
+        marginBottom: '2rem',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{
+            width: '42px',
+            height: '42px',
+            borderRadius: '50%',
+            overflow: 'hidden',
+            border: '2px solid var(--brand-gold)',
+            boxShadow: '0 2px 8px rgba(196,154,82,0.3)',
+            background: '#000',
+            flexShrink: 0,
+          }}>
+            <img
+              src="/dgs-logo.jpg"
+              alt="DGS Logo"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={(e) => {
+                (e.target as HTMLElement).style.display = 'none';
+              }}
+            />
+          </div>
+          <div>
+            <h1 style={{
+              fontFamily: "'Playfair Display', Georgia, serif",
+              fontSize: '1.75rem',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              margin: 0,
+            }}>
+              Boutique Operations Portal
+            </h1>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: '0.15rem 0 0' }}>
+              DGS&apos;s Creation · Rental inventory & delivery administration
+            </p>
+          </div>
+        </div>
 
-      {/* Stats */}
+        <span style={{
+          fontSize: '0.75rem',
+          fontWeight: 700,
+          color: 'var(--brand-primary)',
+          background: 'var(--surface-muted)',
+          border: '1px solid var(--brand-blush)',
+          padding: '0.35rem 0.75rem',
+          borderRadius: '9999px',
+        }}>
+          🛡️ Administrator: {user?.name}
+        </span>
+      </div>
+
+      {/* Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
-          <StatCard label="Products" value={stats.totalProducts} />
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: '1rem',
+          marginBottom: '2rem',
+        }}>
+          <StatCard label="Total Costumes" value={stats.totalProducts} />
           <StatCard label="Total Orders" value={stats.totalOrders} />
           <StatCard label="Pending Orders" value={stats.pendingOrders} sub="Awaiting review" />
           <StatCard label="Delivery Approvals" value={stats.pendingDeliveries ?? 0} sub="Needs dispatch" />
-          <StatCard label="Clients" value={stats.totalUsers} />
-          <StatCard label="Revenue" value={`₹${Number(stats.totalRevenue).toFixed(0)}`} sub="Approved orders" />
+          <StatCard label="Registered Clients" value={stats.totalUsers} />
+          <StatCard label="Total Revenue" value={`₹${Number(stats.totalRevenue).toFixed(0)}`} sub="Approved orders" gold />
         </div>
       )}
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 mb-6 gap-0">
-        {(['orders', 'catalog'] as const).map((tab) => (
-          <button
-            key={tab}
-            id={`tab-${tab}`}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors capitalize ${
-              activeTab === tab
-                ? 'border-gray-900 text-gray-900'
-                : 'border-transparent text-gray-500 hover:text-gray-900'
-            }`}
-          >
-            {tab === 'orders' ? 'Rental Orders' : 'Catalog'}
-          </button>
-        ))}
+      <div style={{
+        display: 'flex',
+        borderBottom: '1px solid var(--border)',
+        marginBottom: '1.75rem',
+        gap: '0.5rem',
+      }}>
+        {(['orders', 'catalog'] as const).map((tab) => {
+          const isActive = activeTab === tab;
+          return (
+            <button
+              key={tab}
+              id={`tab-${tab}`}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                padding: '0.625rem 1.25rem',
+                fontSize: '0.875rem',
+                fontWeight: isActive ? 700 : 500,
+                color: isActive ? 'var(--brand-primary)' : 'var(--text-secondary)',
+                border: 'none',
+                borderBottom: isActive ? '2.5px solid var(--brand-primary)' : '2.5px solid transparent',
+                background: isActive ? 'var(--surface-muted)' : 'transparent',
+                borderRadius: '6px 6px 0 0',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              {tab === 'orders' ? '📋 Rental Bookings & Deliveries' : '👗 Costume Inventory'}
+            </button>
+          );
+        })}
       </div>
 
       {activeTab === 'orders' ? <OrdersTab /> : <CatalogTab />}
