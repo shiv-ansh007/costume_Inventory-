@@ -18,8 +18,12 @@ export default function LoginPage() {
     setError('');
     setIsLoading(true);
     try {
-      await login(email, password);
-      router.push('/catalog');
+      const loggedUser = await login(email, password);
+      if (loggedUser && loggedUser.role === 'ADMIN') {
+        router.push('/admin');
+      } else {
+        router.push('/catalog');
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
