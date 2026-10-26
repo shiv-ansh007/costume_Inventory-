@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { productsApi } from '@/lib/api';
 import ProductCard from '@/components/ProductCard';
 
@@ -23,31 +24,74 @@ interface Pagination {
   pages: number;
 }
 
-const CATEGORIES = ['All', 'Historical', 'Fantasy', 'Halloween', 'Bollywood', 'Superhero', 'Formal', 'Other'];
+const DEFAULT_CATEGORIES = [
+  'All',
+  'Cosplay',
+  'Adult',
+  'Kids',
+  'Accessories',
+  'Historical',
+  'Fantasy',
+  'Bollywood',
+  'Superhero',
+  'Festive',
+  'Bridal & Formal',
+  'Western',
+];
+
 const TYPES = ['All', 'RENT', 'SALE', 'BOTH'];
 
-export default function CatalogPage() {
+function CatalogContent() {
+  const searchParams = useSearchParams();
+  const initialCategory = searchParams.get('category') || 'All';
+
+  const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [products, setProducts] = useState<Product[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('All');
+  const [category, setCategory] = useState(initialCategory);
   const [type, setType] = useState('All');
   const [page, setPage] = useState(1);
+
+  // Sync category if URL parameter changes
+  useEffect(() => {
+    const urlCategory = searchParams.get('category');
+    if (urlCategory && urlCategory !== category) {
+      setCategory(urlCategory);
+    }
+  }, [searchParams]);
+
+  // Load dynamic categories from backend
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const res = await productsApi.getCategories();
+        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+          const list = ['All', ...res.data];
+          setCategories(Array.from(new Set(list)));
+        }
+      } catch {
+        // Fallback to DEFAULT_CATEGORIES
+      }
+    };
+    loadCategories();
+  }, []);
 
   const fetchProducts = useCallback(async () => {
     setIsLoading(true);
     setError('');
     try {
       const params: Record<string, string> = { page: String(page), limit: '12' };
-      if (search) params.search = search;
+      if (search.trim()) params.search = search.trim();
       if (category !== 'All') params.category = category;
       if (type !== 'All') params.type = type;
+
       const res = await productsApi.getAll(params);
-      setProducts(res.data);
-      setPagination(res.pagination);
+      setProducts(res.data || []);
+      setPagination(res.pagination || null);
     } catch {
       setError('Failed to load products. Please try again.');
     } finally {
@@ -55,23 +99,87 @@ export default function CatalogPage() {
     }
   }, [search, category, type, page]);
 
-  useEffect(() => { fetchProducts(); }, [fetchProducts]);
-  useEffect(() => { setPage(1); }, [search, category, type]);
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
-  const hasFilters = search || category !== 'All' || type !== 'All';
+  useEffect(() => {
+    setPage(1);
+  }, [search, category, type]);
+
+  const hasFilters = search.trim() !== '' || category !== 'All' || type !== 'All';
 
   return (
     <div style={{ maxWidth: '80rem', margin: '0 auto', padding: 'clamp(1.5rem, 4vw, 2.5rem) 1.25rem' }}>
 
       {/* Page Header */}
-      <div style={{ marginBottom: '1.75rem' }}>
+      <div style={{ marginBottom: '1.5rem' }}>
         <h1 className="section-heading" style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)' }}>
           Costume Catalog
         </h1>
         <div className="brand-divider" />
         <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.625rem' }}>
-          Discover premium costumes for every occasion
+          Discover handcrafted outfits & accessories curated by category
         </p>
+      </div>
+
+      {/* ─── Interactive Category Chips Bar ─── */}
+      <div style={{
+        marginBottom: '1.25rem',
+        overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        paddingBottom: '0.5rem',
+      }}>
+        <div style={{
+          display: 'flex',
+          gap: '0.5rem',
+          alignItems: 'center',
+          minWidth: 'max-content',
+        }}>
+          <span style={{
+            fontSize: '0.75rem',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            color: 'var(--brand-gold)',
+            marginRight: '0.35rem',
+          }}>
+            Categories:
+          </span>
+          {categories.map((c) => {
+            const isSelected = category.toLowerCase() === c.toLowerCase();
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCategory(c)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  padding: '0.4rem 0.85rem',
+                  fontSize: '0.8125rem',
+                  fontWeight: isSelected ? 700 : 500,
+                  borderRadius: '100px',
+                  border: isSelected ? '1.5px solid var(--brand-primary)' : '1px solid var(--border)',
+                  background: isSelected ? 'var(--brand-primary)' : 'var(--surface)',
+                  color: isSelected ? '#FFFFFF' : 'var(--text-primary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  boxShadow: isSelected ? '0 4px 12px rgba(143,18,63,0.25)' : 'none',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {c === 'All' && <span>✨</span>}
+                {c === 'Cosplay' && <span>🎭</span>}
+                {c === 'Kids' && <span>🎈</span>}
+                {c === 'Adult' && <span>👔</span>}
+                {c === 'Accessories' && <span>👑</span>}
+                {c}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Filters Bar */}
@@ -98,7 +206,7 @@ export default function CatalogPage() {
           <input
             id="search-input"
             type="text"
-            placeholder="Search costumes..."
+            placeholder="Search costumes by name..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="form-input"
@@ -106,8 +214,8 @@ export default function CatalogPage() {
           />
         </div>
 
-        {/* Category */}
-        <div style={{ flex: '1 1 9rem', minWidth: '9rem' }}>
+        {/* Category Dropdown */}
+        <div style={{ flex: '1 1 10rem', minWidth: '10rem' }}>
           <select
             id="category-filter"
             value={category}
@@ -115,14 +223,16 @@ export default function CatalogPage() {
             className="form-input"
             style={{ cursor: 'pointer' }}
           >
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>{c === 'All' ? 'All Categories' : c}</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c === 'All' ? '✨ All Categories' : `👗 ${c}`}
+              </option>
             ))}
           </select>
         </div>
 
-        {/* Type */}
-        <div style={{ flex: '1 1 8rem', minWidth: '8rem' }}>
+        {/* Type Dropdown */}
+        <div style={{ flex: '1 1 8.5rem', minWidth: '8.5rem' }}>
           <select
             id="type-filter"
             value={type}
@@ -131,12 +241,14 @@ export default function CatalogPage() {
             style={{ cursor: 'pointer' }}
           >
             {TYPES.map((t) => (
-              <option key={t} value={t}>{t === 'All' ? 'All Types' : t}</option>
+              <option key={t} value={t}>
+                {t === 'All' ? 'All Types' : t}
+              </option>
             ))}
           </select>
         </div>
 
-        {/* Clear + Count */}
+        {/* Clear + Active info */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginLeft: 'auto' }}>
           {hasFilters && (
             <button
@@ -147,21 +259,52 @@ export default function CatalogPage() {
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
-                fontWeight: 500,
+                fontWeight: 600,
                 textDecoration: 'underline',
                 padding: 0,
               }}
             >
-              Clear filters
+              Reset filters
             </button>
           )}
           {pagination && (
             <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-              <strong style={{ color: 'var(--text-primary)' }}>{pagination.total}</strong> costume{pagination.total !== 1 ? 's' : ''}
+              <strong style={{ color: 'var(--brand-primary)' }}>{pagination.total}</strong> costume{pagination.total !== 1 ? 's' : ''} found
             </span>
           )}
         </div>
       </div>
+
+      {/* Active Category Banner if filtered */}
+      {category !== 'All' && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0.625rem 1rem',
+          marginBottom: '1.25rem',
+          background: 'var(--surface-muted)',
+          border: '1px solid var(--brand-blush)',
+          borderRadius: '8px',
+        }}>
+          <span style={{ fontSize: '0.875rem', color: 'var(--brand-primary)', fontWeight: 600 }}>
+            Showing outfits in category: <strong>{category}</strong>
+          </span>
+          <button
+            onClick={() => setCategory('All')}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '0.75rem',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              textDecoration: 'underline',
+            }}
+          >
+            Show All Outfits
+          </button>
+        </div>
+      )}
 
       {/* Grid */}
       {isLoading ? (
@@ -186,7 +329,9 @@ export default function CatalogPage() {
           borderRadius: 'var(--radius-card)',
           border: '1px solid #F5AABA',
           fontSize: '0.9rem',
-        }}>{error}</div>
+        }}>
+          {error}
+        </div>
       ) : products.length === 0 ? (
         <div style={{
           textAlign: 'center',
@@ -196,8 +341,19 @@ export default function CatalogPage() {
           borderRadius: 'var(--radius-card)',
         }}>
           <div style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.4 }}>👗</div>
-          <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>No costumes found</p>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Try adjusting your filters or search terms.</p>
+          <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
+            No costumes found in &quot;{category}&quot;
+          </p>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+            Try browsing another category or reset your search filters.
+          </p>
+          <button
+            onClick={() => { setSearch(''); setCategory('All'); setType('All'); }}
+            className="btn-primary"
+            style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}
+          >
+            View All Costumes
+          </button>
         </div>
       ) : (
         <div className="product-catalog-grid">
@@ -245,5 +401,17 @@ export default function CatalogPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CatalogPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ maxWidth: '80rem', margin: '0 auto', padding: '3rem 1.25rem', textAlign: 'center' }}>
+        <div className="skeleton" style={{ height: '300px', borderRadius: '12px' }} />
+      </div>
+    }>
+      <CatalogContent />
+    </Suspense>
   );
 }

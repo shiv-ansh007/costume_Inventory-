@@ -67,6 +67,8 @@ export const productsApi = {
     return apiFetch(`/products${query}`);
   },
 
+  getCategories: () => apiFetch('/products/categories'),
+
   getById: (id: number) => apiFetch(`/products/${id}`),
 
   checkAvailability: (id: number, startDate: string, endDate: string) =>

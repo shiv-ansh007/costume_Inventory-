@@ -848,6 +848,21 @@ function OrdersTab() {
   );
 }
 
+const ADMIN_CATEGORIES = [
+  'Cosplay',
+  'Adult',
+  'Kids',
+  'Accessories',
+  'Historical',
+  'Fantasy',
+  'Bollywood',
+  'Superhero',
+  'Festive',
+  'Bridal & Formal',
+  'Western',
+  'Other',
+];
+
 // ─── ProductForm Modal ─────────────────────────────────────────────────────────
 function ProductForm({ product, onSave, onCancel }: {
   product?: Product | null;
@@ -855,12 +870,24 @@ function ProductForm({ product, onSave, onCancel }: {
   onCancel: () => void;
 }) {
   const [name, setName] = useState(product?.name || '');
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState(product ? '' : '');
   const [type, setType] = useState(product?.type || 'RENT');
   const [rentalPrice, setRentalPrice] = useState(product?.rentalPrice ? String(product.rentalPrice) : '');
   const [salePrice, setSalePrice] = useState(product?.salePrice ? String(product.salePrice) : '');
   const [totalStock, setTotalStock] = useState(product?.totalStock ? String(product.totalStock) : '1');
-  const [category, setCategory] = useState(product?.category || '');
+
+  // Category dropdown state
+  const [selectedCategory, setSelectedCategory] = useState(() => {
+    if (!product?.category) return 'Cosplay';
+    if (ADMIN_CATEGORIES.includes(product.category)) return product.category;
+    return 'Other';
+  });
+  const [customCategory, setCustomCategory] = useState(() => {
+    if (!product?.category) return '';
+    if (ADMIN_CATEGORIES.includes(product.category)) return '';
+    return product.category;
+  });
+
   const [image, setImage] = useState<File | null>(null);
   const [imageUrlInput, setImageUrlInput] = useState(product?.imageUrl || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -871,6 +898,8 @@ function ProductForm({ product, onSave, onCancel }: {
     setError('');
     setIsSubmitting(true);
 
+    const finalCategory = (selectedCategory === 'Other' ? customCategory : selectedCategory).trim();
+
     const formData = new FormData();
     formData.append('name', name);
     formData.append('description', description);
@@ -878,7 +907,7 @@ function ProductForm({ product, onSave, onCancel }: {
     if (rentalPrice) formData.append('rentalPrice', rentalPrice);
     if (salePrice) formData.append('salePrice', salePrice);
     formData.append('totalStock', totalStock);
-    if (category) formData.append('category', category);
+    if (finalCategory) formData.append('category', finalCategory);
     if (image) formData.append('image', image);
     if (imageUrlInput) formData.append('imageUrl', imageUrlInput);
 
@@ -911,7 +940,7 @@ function ProductForm({ product, onSave, onCancel }: {
       backdropFilter: 'blur(4px)',
     }}>
       <div className="card" style={{
-        maxWidth: '30rem',
+        maxWidth: '32rem',
         width: '100%',
         maxHeight: '90vh',
         overflowY: 'auto',
@@ -976,20 +1005,40 @@ function ProductForm({ product, onSave, onCancel }: {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
             <div>
               <label className="form-label">Listing Type</label>
-              <select value={type} onChange={(e) => setType(e.target.value)} className="form-input">
+              <select value={type} onChange={(e) => setType(e.target.value)} className="form-input" style={{ cursor: 'pointer' }}>
                 <option value="RENT">RENT ONLY</option>
                 <option value="SALE">SALE ONLY</option>
                 <option value="BOTH">RENT OR SALE</option>
               </select>
             </div>
             <div>
-              <label className="form-label">Category</label>
-              <input
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="e.g. Historical, Bridal"
+              <label className="form-label">Category *</label>
+              <select
+                id="admin-category-select"
+                value={selectedCategory}
+                onChange={(e) => {
+                  setSelectedCategory(e.target.value);
+                  if (e.target.value !== 'Other') setCustomCategory('');
+                }}
                 className="form-input"
-              />
+                style={{ cursor: 'pointer' }}
+              >
+                {ADMIN_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c === 'Other' ? '✍️ Other (Custom Category)' : c}
+                  </option>
+                ))}
+              </select>
+              {selectedCategory === 'Other' && (
+                <input
+                  required
+                  placeholder="Type new category name..."
+                  value={customCategory}
+                  onChange={(e) => setCustomCategory(e.target.value)}
+                  className="form-input"
+                  style={{ marginTop: '0.35rem' }}
+                />
+              )}
             </div>
           </div>
 

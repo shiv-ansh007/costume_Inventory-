@@ -4,6 +4,7 @@ const { protect, adminOnly } = require('../middleware/auth');
 const { upload } = require('../config/cloudinary');
 const {
   getProducts,
+  getCategories,
   getProductById,
   checkAvailability,
   createProduct,
@@ -25,6 +26,9 @@ const productValidation = [
 // ─── Public Routes ────────────────────────────────────────────────────────────
 // GET /api/products
 router.get('/', getProducts);
+
+// GET /api/products/categories
+router.get('/categories', getCategories);
 
 // GET /api/products/:id
 router.get('/:id', getProductById);

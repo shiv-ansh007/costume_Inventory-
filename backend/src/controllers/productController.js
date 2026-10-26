@@ -12,12 +12,14 @@ const getProducts = async (req, res, next) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const where = { isActive: true };
-    if (type) where.type = type;
-    if (category) where.category = category;
-    if (search) {
+    if (type && type !== 'All') where.type = type;
+    if (category && category !== 'All' && category.trim()) {
+      where.category = category.trim();
+    }
+    if (search && search.trim()) {
       where.OR = [
-        { name: { contains: search } },
-        { description: { contains: search } },
+        { name: { contains: search.trim() } },
+        { description: { contains: search.trim() } },
       ];
     }
 
@@ -157,7 +159,7 @@ const createProduct = async (req, res, next) => {
         rentalPrice: rentalPrice ? parseFloat(rentalPrice) : null,
         salePrice: salePrice ? parseFloat(salePrice) : null,
         totalStock: parseInt(totalStock) || 1,
-        category,
+        category: category ? category.trim() : null,
         imageUrl,
         imagePublicId,
       },
@@ -204,7 +206,7 @@ const updateProduct = async (req, res, next) => {
         ...(rentalPrice !== undefined && { rentalPrice: rentalPrice ? parseFloat(rentalPrice) : null }),
         ...(salePrice !== undefined && { salePrice: salePrice ? parseFloat(salePrice) : null }),
         ...(totalStock !== undefined && { totalStock: parseInt(totalStock) }),
-        ...(category !== undefined && { category }),
+        ...(category !== undefined && { category: category ? category.trim() : null }),
         ...(isActive !== undefined && { isActive: isActive === 'true' || isActive === true }),
         imageUrl,
         imagePublicId,
@@ -258,8 +260,58 @@ const getAllProductsAdmin = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/products/categories
+ * Public: Get distinct categories from active products + curated boutique categories
+ */
+const getCategories = async (req, res, next) => {
+  try {
+    const products = await prisma.product.findMany({
+      where: { isActive: true, category: { not: null } },
+      select: { category: true },
+      distinct: ['category'],
+    });
+
+    const dbCategories = products
+      .map((p) => p.category?.trim())
+      .filter((c) => Boolean(c));
+
+    const standardCategories = [
+      'Cosplay',
+      'Adult',
+      'Kids',
+      'Accessories',
+      'Historical',
+      'Fantasy',
+      'Bollywood',
+      'Superhero',
+      'Festive',
+      'Bridal & Formal',
+      'Western',
+    ];
+
+    // Deduplicate case-insensitively while preserving original casing
+    const categoryMap = new Map();
+    for (const c of dbCategories) {
+      categoryMap.set(c.toLowerCase(), c);
+    }
+    for (const c of standardCategories) {
+      if (!categoryMap.has(c.toLowerCase())) {
+        categoryMap.set(c.toLowerCase(), c);
+      }
+    }
+
+    const categories = Array.from(categoryMap.values()).sort((a, b) => a.localeCompare(b));
+
+    res.json({ success: true, data: categories });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getProducts,
+  getCategories,
   getProductById,
   checkAvailability,
   createProduct,
