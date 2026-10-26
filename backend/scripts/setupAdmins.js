@@ -40,17 +40,20 @@ async function setup() {
     });
     console.log(`✅ Configured: ${admin2.email} (Role: ${admin2.role})`);
 
-    // 3. Promote shivanshsingh9876@gmail.com to ADMIN if exists
-    const shivansh = await prisma.user.findFirst({
+    // 3. Upsert shivanshsingh9876@gmail.com as ADMIN
+    const shivansh = await prisma.user.upsert({
       where: { email: 'shivanshsingh9876@gmail.com' },
+      update: {
+        role: 'ADMIN',
+      },
+      create: {
+        name: 'Shivansh Singh',
+        email: 'shivanshsingh9876@gmail.com',
+        password: hashedPassword,
+        role: 'ADMIN',
+      },
     });
-    if (shivansh) {
-      await prisma.user.update({
-        where: { id: shivansh.id },
-        data: { role: 'ADMIN' },
-      });
-      console.log(`✅ Promoted to ADMIN: shivanshsingh9876@gmail.com (keeps existing password)`);
-    }
+    console.log(`✅ Configured ADMIN: ${shivansh.email}`);
 
     console.log('\n--- Setup Complete ---');
     console.log('Login credentials available:');
