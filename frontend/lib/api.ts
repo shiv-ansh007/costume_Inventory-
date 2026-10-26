@@ -42,7 +42,8 @@ async function apiFetch(endpoint: string, options: FetchOptions = {}) {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.message || 'Something went wrong');
+    const errorMsg = data.message || data.errors?.[0]?.msg || 'Invalid credentials or request error';
+    throw new Error(errorMsg);
   }
 
   return data;
