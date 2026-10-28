@@ -309,6 +309,38 @@ const getCategories = async (req, res, next) => {
   }
 };
 
+/**
+ * PATCH /api/products/admin/:id/status
+ * Admin: Activate or deactivate a product
+ */
+const toggleProductStatus = async (req, res, next) => {
+  try {
+    const productId = parseInt(req.params.id);
+    const existing = await prisma.product.findUnique({ where: { id: productId } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    const newStatus =
+      req.body.isActive !== undefined
+        ? req.body.isActive === true || req.body.isActive === 'true'
+        : !existing.isActive;
+
+    const product = await prisma.product.update({
+      where: { id: productId },
+      data: { isActive: newStatus },
+    });
+
+    res.json({
+      success: true,
+      data: product,
+      message: `Product ${product.isActive ? 'activated' : 'deactivated'} successfully`,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getProducts,
   getCategories,
@@ -317,5 +349,6 @@ module.exports = {
   createProduct,
   updateProduct,
   deleteProduct,
+  toggleProductStatus,
   getAllProductsAdmin,
 };

@@ -1126,6 +1126,7 @@ function ProductForm({
 
   const [image, setImage] = useState<File | null>(null);
   const [imageUrlInput, setImageUrlInput] = useState(product?.imageUrl || '');
+  const [isActive, setIsActive] = useState<boolean>(product ? product.isActive : true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -1144,6 +1145,7 @@ function ProductForm({
     if (salePrice) formData.append('salePrice', salePrice);
     formData.append('totalStock', totalStock);
     if (finalCategory) formData.append('category', finalCategory);
+    formData.append('isActive', String(isActive));
     if (image) formData.append('image', image);
     if (imageUrlInput) formData.append('imageUrl', imageUrlInput);
 
@@ -1346,6 +1348,47 @@ function ProductForm({
             />
           </div>
 
+          {/* Visibility / Active Status Switch */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0.75rem 1rem',
+            background: isActive ? 'rgba(22,131,74,0.06)' : 'rgba(239,68,68,0.06)',
+            border: `1px solid ${isActive ? 'rgba(22,131,74,0.25)' : 'rgba(239,68,68,0.25)'}`,
+            borderRadius: 'var(--radius-input)',
+          }}>
+            <div>
+              <p style={{ margin: 0, fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                Catalog Visibility
+              </p>
+              <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                {isActive ? 'Costume is Active & visible in customer catalog' : 'Costume is Inactive & hidden from customers'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsActive(!isActive)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                padding: '0.4rem 0.85rem',
+                borderRadius: '100px',
+                border: 'none',
+                background: isActive ? 'var(--success)' : '#796570',
+                color: '#FFFFFF',
+                fontWeight: 700,
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              <span>{isActive ? '● Active' : '○ Inactive'}</span>
+              <span style={{ fontSize: '0.6875rem', opacity: 0.85 }}>(Click to switch)</span>
+            </button>
+          </div>
+
           <div style={{ display: 'flex', gap: '0.75rem', paddingTop: '0.5rem' }}>
             <button type="button" onClick={onCancel} className="btn-secondary" style={{ flex: 1, padding: '0.625rem' }}>
               Cancel
@@ -1424,6 +1467,21 @@ function CatalogTab() {
       setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, isActive: false } : p)));
     } catch {
       // ignore
+    }
+  };
+
+  const handleToggleStatus = async (product: Product) => {
+    const nextStatus = !product.isActive;
+    const actionWord = nextStatus ? 'activate' : 'deactivate';
+    if (!confirm(`Are you sure you want to ${actionWord} "${product.name}"?`)) return;
+
+    try {
+      await productsApi.toggleStatus(product.id, nextStatus);
+      setProducts((prev) =>
+        prev.map((p) => (p.id === product.id ? { ...p, isActive: nextStatus } : p))
+      );
+    } catch {
+      alert(`Failed to ${actionWord} product`);
     }
   };
 
@@ -1915,47 +1973,78 @@ function CatalogTab() {
                         </div>
                       </td>
 
-                      {/* Active Status */}
+                      {/* Active Status Toggle Badge */}
                       <td style={{ padding: '0.75rem 1rem' }}>
-                        <span style={{
-                          fontSize: '0.6875rem',
-                          fontWeight: 700,
-                          padding: '0.2rem 0.5rem',
-                          borderRadius: '4px',
-                          background: p.isActive ? 'rgba(22, 131, 74, 0.1)' : '#F1F1F1',
-                          color: p.isActive ? 'var(--success)' : '#796570',
-                          border: `1px solid ${p.isActive ? 'rgba(22, 131, 74, 0.3)' : '#DCD4D7'}`,
-                        }}>
-                          {p.isActive ? 'Active' : 'Inactive'}
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStatus(p)}
+                          title={`Click to ${p.isActive ? 'Deactivate' : 'Activate'}`}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            fontSize: '0.6875rem',
+                            fontWeight: 700,
+                            padding: '0.25rem 0.65rem',
+                            borderRadius: '100px',
+                            background: p.isActive ? 'rgba(22, 131, 74, 0.12)' : '#FFF0F0',
+                            color: p.isActive ? 'var(--success)' : 'var(--error)',
+                            border: `1px solid ${p.isActive ? 'rgba(22, 131, 74, 0.35)' : '#F5AABA'}`,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s',
+                          }}
+                        >
+                          <span>{p.isActive ? '●' : '○'}</span>
+                          <span>{p.isActive ? 'Active' : 'Inactive'}</span>
+                        </button>
                       </td>
 
-                      {/* Actions */}
+                      {/* Actions: Edit, Deactivate / Activate */}
                       <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', gap: '0.35rem' }}>
+                        <div style={{ display: 'inline-flex', gap: '0.35rem', alignItems: 'center' }}>
                           <button
                             type="button"
                             onClick={() => { setEditProduct(p); setShowForm(true); }}
                             className="btn-secondary"
-                            style={{ fontSize: '0.6875rem', padding: '0.25rem 0.55rem' }}
+                            style={{ fontSize: '0.6875rem', padding: '0.3rem 0.6rem' }}
                           >
                             Edit
                           </button>
-                          {p.isActive && (
+                          {p.isActive ? (
                             <button
                               type="button"
-                              onClick={() => handleDelete(p.id)}
+                              onClick={() => handleToggleStatus(p)}
+                              title="Deactivate costume from public catalog"
                               style={{
                                 fontSize: '0.6875rem',
-                                padding: '0.25rem 0.55rem',
-                                background: 'none',
-                                border: '1px solid var(--border)',
+                                padding: '0.3rem 0.6rem',
+                                background: '#FFF7F8',
+                                border: '1px solid #F5AABA',
                                 color: 'var(--error)',
                                 borderRadius: '4px',
                                 cursor: 'pointer',
+                                fontWeight: 600,
                               }}
                             >
                               Deactivate
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleStatus(p)}
+                              title="Re-activate costume to show in catalog"
+                              style={{
+                                fontSize: '0.6875rem',
+                                padding: '0.3rem 0.6rem',
+                                background: '#EDFBF4',
+                                border: '1px solid #A8E6C4',
+                                color: '#16834A',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontWeight: 700,
+                              }}
+                            >
+                              Activate
                             </button>
                           )}
                         </div>

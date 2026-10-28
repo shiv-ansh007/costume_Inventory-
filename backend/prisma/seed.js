@@ -93,6 +93,25 @@ async function main() {
   });
   console.log(`✅ Admin provisioned: ${admin.email} (Role: ${admin.role})`);
 
+  // Provision second admin: admin@dgscreation.com
+  const dgsEmail = 'admin@dgscreation.com';
+  const dgsHashedPassword = await bcrypt.hash('Admin@12345', 12);
+  const dgsAdmin = await prisma.user.upsert({
+    where: { email: dgsEmail },
+    update: {
+      password: dgsHashedPassword,
+      role: 'ADMIN',
+      name: 'DGS Creation Admin',
+    },
+    create: {
+      name: 'DGS Creation Admin',
+      email: dgsEmail,
+      password: dgsHashedPassword,
+      role: 'ADMIN',
+    },
+  });
+  console.log(`✅ Admin provisioned: ${dgsAdmin.email} (Role: ${dgsAdmin.role})`);
+
   console.log('Seeding demo costume products...');
   for (const costume of sampleCostumes) {
     const existing = await prisma.product.findFirst({

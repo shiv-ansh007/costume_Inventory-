@@ -10,6 +10,7 @@ const {
   createProduct,
   updateProduct,
   deleteProduct,
+  toggleProductStatus,
   getAllProductsAdmin,
 } = require('../controllers/productController');
 
@@ -45,6 +46,10 @@ router.post('/admin', protect, adminOnly, upload.single('image'), productValidat
 
 // PUT /api/products/admin/:id
 router.put('/admin/:id', protect, adminOnly, upload.single('image'), updateProduct);
+
+// PATCH /api/products/admin/:id/status (and PUT)
+router.patch('/admin/:id/status', protect, adminOnly, toggleProductStatus);
+router.put('/admin/:id/status', protect, adminOnly, toggleProductStatus);
 
 // DELETE /api/products/admin/:id
 router.delete('/admin/:id', protect, adminOnly, deleteProduct);

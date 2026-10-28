@@ -94,6 +94,13 @@ export const productsApi = {
       body: formData,
     }).then((r) => r.json()),
 
+  toggleStatus: (id: number, isActive?: boolean) =>
+    apiFetch(`/products/admin/${id}/status`, {
+      method: 'PATCH',
+      auth: true,
+      body: JSON.stringify(isActive !== undefined ? { isActive } : {}),
+    }),
+
   delete: (id: number) =>
     apiFetch(`/products/admin/${id}`, { method: 'DELETE', auth: true }),
 };
