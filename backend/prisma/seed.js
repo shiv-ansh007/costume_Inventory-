@@ -70,7 +70,29 @@ const sampleCostumes = [
   },
 ];
 
+const bcrypt = require('bcryptjs');
+
 async function main() {
+  console.log('Provisioning default Admin account...');
+  const adminEmail = 'admin@costumerent.com';
+  const hashedPassword = await bcrypt.hash('admin123', 12);
+
+  const admin = await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: {
+      password: hashedPassword,
+      role: 'ADMIN',
+      name: 'Store Admin',
+    },
+    create: {
+      name: 'Store Admin',
+      email: adminEmail,
+      password: hashedPassword,
+      role: 'ADMIN',
+    },
+  });
+  console.log(`✅ Admin provisioned: ${admin.email} (Role: ${admin.role})`);
+
   console.log('Seeding demo costume products...');
   for (const costume of sampleCostumes) {
     const existing = await prisma.product.findFirst({
